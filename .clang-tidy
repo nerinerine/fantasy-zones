@@ -1,0 +1,9 @@
+# .clang-tidy
+---
+Checks: >
+  -*,
+  cppcoreguidelines-*,
+  bugprone-*,
+  modernize-*,
+  performance-*,
+  -cppcoreguidelines-pro-type-reinterpret-cast,

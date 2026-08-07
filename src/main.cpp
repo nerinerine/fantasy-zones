@@ -1,6 +1,6 @@
-#include <iostream>
+#include "fmt/core.h"
 
-int main(int argc, char **argv) {
-    std::cout << "hello world!" << std::endl;
+auto main(int argc, char **argv) -> int {
+    fmt::print("hello{}","world");
     return 0;
 }
