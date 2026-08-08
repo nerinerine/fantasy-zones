@@ -1,5 +1,5 @@
 add_rules("mode.debug", "mode.release")
-add_requires("libsdl2")
+add_requires("libsdl3")
 add_requires("fmt")
 
 target("fantasy_zones")
@@ -7,12 +7,11 @@ target("fantasy_zones")
     set_kind("binary")
     set_toolchains("clang")
 
-    add_packages("libsdl2")
+    add_packages("libsdl3")
     add_packages("fmt")
 
     add_headerfiles("src/**.hpp")
     add_files("src/**.cpp")
-    add_links("SDL2main")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
