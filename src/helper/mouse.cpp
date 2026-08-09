@@ -1,0 +1,8 @@
+#include "./mouse.hpp"
+#include <windows.h>
+
+auto getMousePos() -> Pos {
+    POINT pt;
+    GetCursorPos(&pt);
+    return { .x = pt.x, .y = pt.y };
+}

@@ -1,11 +1,12 @@
 #include <thread>
 
-#include "fmt/core.h"
-#include "SDL3/SDL.h" // IWYU pragma: keep
+#include <fmt/core.h>
+#include <SDL3/SDL.h>
 
 #include "helper/sdl_ptr_factory.hpp"
 #include "define.hpp"
 #include "helper/screen.hpp"
+#include "helper/hotkey.hpp"
 
 auto main(int argc, char **argv) -> int {
     // init sdl
@@ -14,7 +15,7 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
-    const auto SDLModelHandle = SDLPtrFactoryGen<SDL_Quit>;
+    const auto SDLModelHandle = SDLPtrFactoryGen<SDL_Quit>();
 
     // create window
     const auto screenSize = getScreenSize();
@@ -30,6 +31,11 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
+    SDL_SetWindowAlwaysOnTop(win.get(), true);
+
+    // init and reg hot key
+    regHotkey(win.get());
+
     // create render
     const auto rdr = SDLPtrFactoryGen<SDL_DestroyRenderer>(
         SDL_CreateRenderer(win.get(), nullptr));
@@ -40,29 +46,27 @@ auto main(int argc, char **argv) -> int {
     }
 
     // main loop
-    const auto renderLoop = [&]() -> void {
-        SDL_Event event{};
+    SDL_Event event{};
+    bool shouldQuit = false;
 
-        while (true) {
-            while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_EventType::SDL_EVENT_QUIT) {
-                    return;
-                }
+    while (!shouldQuit) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EventType::SDL_EVENT_QUIT) {
+                shouldQuit = true;
             }
-
-            SDL_RenderPresent(rdr.get());
-
-            SDL_SetRenderDrawColor(rdr.get(),
-                                   CLEAR_COLOR.r,
-                                   CLEAR_COLOR.g,
-                                   CLEAR_COLOR.b,
-                                   CLEAR_COLOR.a);
-            SDL_RenderClear(rdr.get());
-
-            std::this_thread::sleep_for(SLEEP_DURATION);
         }
-    };
-    renderLoop();
+
+        SDL_RenderPresent(rdr.get());
+
+        SDL_SetRenderDrawColor(rdr.get(),
+                               CLEAR_COLOR.r,
+                               CLEAR_COLOR.g,
+                               CLEAR_COLOR.b,
+                               CLEAR_COLOR.a);
+        SDL_RenderClear(rdr.get());
+
+        std::this_thread::sleep_for(SLEEP_DURATION);
+    }
 
     return 0;
 }
