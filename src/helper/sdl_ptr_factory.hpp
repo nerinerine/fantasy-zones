@@ -1,4 +1,5 @@
 #pragma once
+#include <bit>
 #include <memory>
 
 // SDLPtrFactory类，用来包装那些由sdl的工厂函数创建，并需要使用对应函数删除的指针。
@@ -34,7 +35,7 @@ template <void (*del)()> struct SDLPtrFactory<del> {
         // 一个随机选择的void类型非null指针
         // 仅作为std::unique_ptr持有的占位符使用
         // ** 不 要 解 引 用 它 !!! **
-        const auto NOT_NULL_PTR = reinterpret_cast<void *>(42ULL);
+        const auto NOT_NULL_PTR = std::bit_cast<void *>(42ULL);
         const auto delWrapper = [](void *) -> void { del(); };
         using RetType = std::unique_ptr<void, decltype(delWrapper)>;
 

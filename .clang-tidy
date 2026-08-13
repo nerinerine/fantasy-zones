@@ -6,4 +6,3 @@ Checks: >
   bugprone-*,
   modernize-*,
   performance-*,
-  -cppcoreguidelines-pro-type-reinterpret-cast,

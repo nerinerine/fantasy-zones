@@ -14,7 +14,7 @@ auto regHotkey() noexcept -> bool {
         SDL_GetPointerProperty(SDL_GetWindowProperties(getState().win),
                                SDL_PROP_WINDOW_WIN32_HWND_POINTER,
                                nullptr);
-    const auto hwnd = reinterpret_cast<HWND>(_hwnd);
+    const auto hwnd = static_cast<HWND>(_hwnd);
 
     if (!RegisterHotKey(hwnd, keyId, MOD_ALT, *"A")) {
         return false;
