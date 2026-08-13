@@ -20,8 +20,8 @@ auto main(int argc, char **argv) -> int {
 
     // create window
     const auto screenSize = getScreenSize();
-    getState().winWidth = static_cast<int>(screenSize.width * WINDOW_WIDTH_SCALE);
-    getState().winHeight = static_cast<int>(screenSize.height *
+    setState().winWidth = static_cast<int>(screenSize.width * WINDOW_WIDTH_SCALE);
+    setState().winHeight = static_cast<int>(screenSize.height *
                                         WINDOW_HEIGHT_SCALE);
 
     const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
@@ -35,13 +35,12 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
-    getState().win = win.get();
+    setState().win = win.get();
 
     SDL_SetWindowAlwaysOnTop(win.get(), true);
 
     // reg hot key
     regHotkey();
-
     // create render
     const auto rdr = SDLPtrFactoryGen<SDL_DestroyRenderer>(
         SDL_CreateRenderer(win.get(), nullptr));

@@ -6,4 +6,5 @@ struct State {
     SDL_Window *win;
 };
 
-auto getState() noexcept -> State &;
+auto setState() noexcept -> State &;
+auto getState() noexcept -> const State&;

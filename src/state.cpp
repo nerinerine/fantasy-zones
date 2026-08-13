@@ -1,6 +1,10 @@
 #include "state.hpp"
 
-auto getState() noexcept -> State & {
+auto setState() noexcept -> State & {
     static State state{};
     return state;
+}
+
+auto getState() noexcept -> const State&{
+    return setState();
 }
