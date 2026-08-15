@@ -1,10 +1,7 @@
 #include "hook.hpp"
 
 #include <thread>
-#include <array>
-#include <string_view>
 #include "fmt/base.h"
-#include "fmt/xchar.h"
 
 #include "../define.hpp"
 
@@ -15,6 +12,8 @@ class Config {
     HHOOK kbHook{};
     HWINEVENTHOOK winMoveHook{};
     LLHook::EventQueue *queue = nullptr;
+    bool isWindowMoving = false;
+    bool isAltkeyPushing = false;
     bool init = false;
 
     [[nodiscard]] static auto instance() noexcept -> Config * {
@@ -26,6 +25,15 @@ class Config {
     Config() = default;
 };
 
+void submitWindowEvent() noexcept {
+    const auto config = Config::instance();
+    if (!config->isWindowMoving || !config->isAltkeyPushing) {
+        config->queue->Push(Event::WIN_HIDE);
+    } else {
+        config->queue->Push(Event::WIN_DISPLAY);
+    }
+}
+
 auto CALLBACK altCheckCallback(int nCode, WPARAM wParam, LPARAM lParam)
     -> LRESULT {
     const auto queue = Config::instance()->queue;
@@ -33,13 +41,17 @@ auto CALLBACK altCheckCallback(int nCode, WPARAM wParam, LPARAM lParam)
         auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
         if (pKeyBoard->vkCode == VK_LMENU) {
             if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
-                fmt::println("press alt");
-                queue->Push(Event::WIN_DISPLAY);
+                Config::instance()->isAltkeyPushing = true;
             }
             if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
-                fmt::println("release alt");
-                queue->Push(Event::WIN_HIDE);
+                Config::instance()->isAltkeyPushing = false;
             }
+            submitWindowEvent();
+        }
+
+        // 这是暂时的，毕竟总得有个正常退出的方法
+        if (pKeyBoard->vkCode == *"C") {
+            queue->Push(Event::THREAD_STOP);
         }
     }
 
@@ -55,16 +67,13 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
                            DWORD idEventThread,
                            DWORD dwmsEventTime) {
     // NOLINTEND(bugprone-easily-swappable-parameters)
-    constexpr size_t BUF_SIZE = 256;
-    std::array<WCHAR, BUF_SIZE> buf{};
-    GetWindowTextW(hwnd, buf.data(), BUF_SIZE);
-
     if (event == EVENT_SYSTEM_MOVESIZESTART) {
-        fmt::println(L"{} move start\r\n", std::wstring_view(buf));
+        Config::instance()->isWindowMoving = true;
     }
     if (event == EVENT_SYSTEM_MOVESIZEEND) {
-        fmt::println(L"{} move end\r\n", std::wstring_view(buf));
+        Config::instance()->isWindowMoving = false;
     }
+    submitWindowEvent();
 }
 
 auto LLHook::init(LLHook::EventQueue *queue) noexcept -> bool {

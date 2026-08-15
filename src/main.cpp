@@ -9,7 +9,8 @@
 #include "llhook/hook.hpp"
 
 auto main(int argc, char **argv) -> int {
-    std::setlocale(LC_ALL, ""); //使用用户环境默认locale以使fmt可以正常打印宽字符串
+    std::setlocale(LC_ALL,
+                   ""); //使用用户环境默认locale以使fmt可以正常打印宽字符串
 
     // init sdl
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -59,25 +60,36 @@ auto main(int argc, char **argv) -> int {
     // main loop
     SDL_Event event{};
     bool shouldQuit = false;
+    bool isWindowShow = false;
 
     while (!shouldQuit) {
+        for (auto event = queue.Pop(); event.has_value(); event = queue.Pop()) {
+            switch (*event) {
+            case Event::WIN_DISPLAY:
+                SDL_ShowWindow(win.get());
+                isWindowShow = true;
+                break;
+            case Event::WIN_HIDE:
+                SDL_HideWindow(win.get());
+                isWindowShow = false;
+                break;
+            case Event::THREAD_STOP:
+                shouldQuit = true;
+                break;
+            default:
+                break;
+            }
+        }
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EventType::SDL_EVENT_QUIT) {
                 shouldQuit = true;
             }
         }
 
-        for (auto event = queue.Pop(); event.has_value(); event = queue.Pop()) {
-            switch (*event) {
-            case Event::WIN_DISPLAY:
-                SDL_ShowWindow(win.get());
-                break;
-            case Event::WIN_HIDE:
-                SDL_HideWindow(win.get());
-                break;
-            default:
-                break;
-            }
+        if (!isWindowShow) {
+            std::this_thread::sleep_for(SLEEP_DURATION);
+            continue;
         }
 
         SDL_RenderPresent(rdr.get());
