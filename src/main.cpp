@@ -24,8 +24,11 @@ auto main(int argc, char **argv) -> int {
     const auto winHeight = static_cast<int>(screenSize.height *
                                             WINDOW_HEIGHT_SCALE);
 
-    const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(SDL_CreateWindow(
-        "Fantacy Zone", winWidth, winHeight, SDL_WINDOW_BORDERLESS));
+    const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
+        SDL_CreateWindow("Fantacy Zone",
+                         winWidth,
+                         winHeight,
+                         SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
 
     if (!win) {
         fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
@@ -35,12 +38,12 @@ auto main(int argc, char **argv) -> int {
     SDL_SetWindowAlwaysOnTop(win.get(), true);
 
     // reg low level hook
-    LLHook::init();
+    LLHook::EventQueue queue{};
+    LLHook::init(&queue);
     auto llhookHandle = SDLPtrFactoryGen<LLHook::destory>();
 
     // start event loop for hook
-    LLHook::EventQueue queue{};
-    auto hookThread = std::jthread(LLHook::run, &queue);
+    auto hookThread = std::jthread(LLHook::run);
 
     // create render
     const auto rdr = SDLPtrFactoryGen<SDL_DestroyRenderer>(
@@ -59,6 +62,19 @@ auto main(int argc, char **argv) -> int {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EventType::SDL_EVENT_QUIT) {
                 shouldQuit = true;
+            }
+        }
+
+        for (auto event = queue.Pop(); event.has_value(); event = queue.Pop()) {
+            switch (*event) {
+            case Event::WIN_DISPLAY:
+                SDL_ShowWindow(win.get());
+                break;
+            case Event::WIN_HIDE:
+                SDL_HideWindow(win.get());
+                break;
+            default:
+                break;
             }
         }
 

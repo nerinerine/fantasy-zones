@@ -9,8 +9,9 @@
 
 class Config {
   public:
-    bool init = false;
     HHOOK kbHook{};
+    LLHook::EventQueue *queue = nullptr;
+    bool init = false;
 
     [[nodiscard]] static auto instance() noexcept -> Config * {
         static Config config{};
@@ -23,14 +24,17 @@ class Config {
 
 auto CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     -> LRESULT {
+    const auto queue = Config::instance()->queue;
     if (nCode == HC_ACTION) {
         auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
         if (pKeyBoard->vkCode == VK_LMENU) {
             if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
                 fmt::println("press alt");
+                queue->Push(Event::WIN_DISPLAY);
             }
             if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
                 fmt::println("release alt");
+                queue->Push(Event::WIN_HIDE);
             }
         }
     }
@@ -38,7 +42,7 @@ auto CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     return CallNextHookEx(Config::instance()->kbHook, nCode, wParam, lParam);
 }
 
-auto LLHook::init() noexcept -> bool {
+auto LLHook::init(LLHook::EventQueue *queue) noexcept -> bool {
     auto config = Config::instance();
 
     if (config->init) {
@@ -56,12 +60,14 @@ auto LLHook::init() noexcept -> bool {
         return false;
     }
 
+    config->queue = queue;
+
     config->init = true;
     return true;
 }
 
 // NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
-void LLHook::run(std::stop_token token, LLHook::EventQueue *queue) noexcept {
+void LLHook::run(std::stop_token token) noexcept {
     MSG msg;
     while (!token.stop_requested()) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
