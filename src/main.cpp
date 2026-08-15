@@ -4,7 +4,6 @@
 #include <SDL3/SDL.h>
 
 #include "define.hpp"
-#include "state.hpp"
 #include "helper/sdl_ptr_factory.hpp"
 #include "helper/screen.hpp"
 #include "llhook/hook.hpp"
@@ -20,15 +19,15 @@ auto main(int argc, char **argv) -> int {
 
     // create window
     const auto screenSize = getScreenSize();
-    setState().winWidth = static_cast<int>(screenSize.width *
+    const auto winWidth = static_cast<int>(screenSize.width *
                                            WINDOW_WIDTH_SCALE);
-    setState().winHeight = static_cast<int>(screenSize.height *
+    const auto winHeight = static_cast<int>(screenSize.height *
                                             WINDOW_HEIGHT_SCALE);
 
     const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
-                         getState().winWidth,
-                         getState().winHeight,
+                         winWidth,
+                         winHeight,
                          SDL_WINDOW_BORDERLESS));
 
     if (!win) {
@@ -36,15 +35,13 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
-    setState().win = win.get();
-
     SDL_SetWindowAlwaysOnTop(win.get(), true);
 
     // reg low level hook
     LLHook::init();
+    auto llhookHandle = SDLPtrFactoryGen<LLHook::destory>();
 
     // start event loop for hook
-
     auto hookThread = std::jthread([]() -> void { LLHook::run(); });
 
     // create render
@@ -78,8 +75,6 @@ auto main(int argc, char **argv) -> int {
 
         std::this_thread::sleep_for(SLEEP_DURATION);
     }
-
-    LLHook::destory();
 
     return 0;
 }
