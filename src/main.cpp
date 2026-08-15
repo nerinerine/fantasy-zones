@@ -24,11 +24,8 @@ auto main(int argc, char **argv) -> int {
     const auto winHeight = static_cast<int>(screenSize.height *
                                             WINDOW_HEIGHT_SCALE);
 
-    const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
-        SDL_CreateWindow("Fantacy Zone",
-                         winWidth,
-                         winHeight,
-                         SDL_WINDOW_BORDERLESS));
+    const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(SDL_CreateWindow(
+        "Fantacy Zone", winWidth, winHeight, SDL_WINDOW_BORDERLESS));
 
     if (!win) {
         fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
@@ -42,7 +39,8 @@ auto main(int argc, char **argv) -> int {
     auto llhookHandle = SDLPtrFactoryGen<LLHook::destory>();
 
     // start event loop for hook
-    auto hookThread = std::jthread([]() -> void { LLHook::run(); });
+    LLHook::EventQueue queue{};
+    auto hookThread = std::jthread(LLHook::run, &queue);
 
     // create render
     const auto rdr = SDLPtrFactoryGen<SDL_DestroyRenderer>(

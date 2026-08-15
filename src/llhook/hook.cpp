@@ -1,21 +1,24 @@
 #include "hook.hpp"
 
+#include <thread>
 #include "fmt/core.h"
+
+#include "../define.hpp"
 
 #include <Windows.h>
 
-class InitConfig {
+class Config {
   public:
     bool init = false;
     HHOOK kbHook{};
 
-    [[nodiscard]] static auto instance() noexcept -> InitConfig * {
-        static InitConfig config{};
+    [[nodiscard]] static auto instance() noexcept -> Config * {
+        static Config config{};
         return &config;
     }
 
   private:
-    InitConfig() = default;
+    Config() = default;
 };
 
 auto CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -32,14 +35,11 @@ auto CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         }
     }
 
-    return CallNextHookEx(InitConfig::instance()->kbHook,
-                          nCode,
-                          wParam,
-                          lParam);
+    return CallNextHookEx(Config::instance()->kbHook, nCode, wParam, lParam);
 }
 
 auto LLHook::init() noexcept -> bool {
-    auto config = InitConfig::instance();
+    auto config = Config::instance();
 
     if (config->init) {
         return true;
@@ -60,16 +60,27 @@ auto LLHook::init() noexcept -> bool {
     return true;
 }
 
-void LLHook::run() noexcept {
+// NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
+void LLHook::run(std::stop_token token, LLHook::EventQueue *queue) noexcept {
     MSG msg;
-    while (GetMessage(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+    while (!token.stop_requested()) {
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            // 其实这个检测应该没什么用，但是D指导这么写了...(目移)
+            if (msg.message == WM_QUIT)
+                break;
+
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        } else {
+            // 暂且借用一下渲染模块那边的sleep duration
+            // 不过感觉其实不是很需要再改就是了
+            std::this_thread::sleep_for(SLEEP_DURATION);
+        }
     }
 }
 
 void LLHook::destory() noexcept {
-    auto config = InitConfig::instance();
+    auto config = Config::instance();
     UnhookWindowsHookEx(config->kbHook);
     config->init = false;
 }
