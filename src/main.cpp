@@ -9,6 +9,8 @@
 #include "llhook/hook.hpp"
 
 auto main(int argc, char **argv) -> int {
+    std::setlocale(LC_ALL, ""); //使用用户环境默认locale以使fmt可以正常打印宽字符串
+
     // init sdl
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         fmt::println(stderr, "sdl init error:{}", SDL_GetError());
