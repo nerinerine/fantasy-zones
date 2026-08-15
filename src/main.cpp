@@ -7,12 +7,12 @@
 #include "state.hpp"
 #include "helper/sdl_ptr_factory.hpp"
 #include "helper/screen.hpp"
-#include "helper/hotkey.hpp"
+#include "llhook/hook.hpp"
 
 auto main(int argc, char **argv) -> int {
     // init sdl
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        fmt::print(stderr,"sdl init error:{}", SDL_GetError());
+        fmt::println(stderr, "sdl init error:{}", SDL_GetError());
         return -1;
     }
 
@@ -20,9 +20,10 @@ auto main(int argc, char **argv) -> int {
 
     // create window
     const auto screenSize = getScreenSize();
-    setState().winWidth = static_cast<int>(screenSize.width * WINDOW_WIDTH_SCALE);
+    setState().winWidth = static_cast<int>(screenSize.width *
+                                           WINDOW_WIDTH_SCALE);
     setState().winHeight = static_cast<int>(screenSize.height *
-                                        WINDOW_HEIGHT_SCALE);
+                                            WINDOW_HEIGHT_SCALE);
 
     const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
@@ -31,7 +32,7 @@ auto main(int argc, char **argv) -> int {
                          SDL_WINDOW_BORDERLESS));
 
     if (!win) {
-        fmt::print(stderr,"sdl create window error:{}", SDL_GetError());
+        fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
         return -1;
     }
 
@@ -39,14 +40,19 @@ auto main(int argc, char **argv) -> int {
 
     SDL_SetWindowAlwaysOnTop(win.get(), true);
 
-    // reg hot key
-    regHotkey();
+    // reg low level hook
+    LLHook::init();
+
+    // start event loop for hook
+
+    auto hookThread = std::jthread([]() -> void { LLHook::run(); });
+
     // create render
     const auto rdr = SDLPtrFactoryGen<SDL_DestroyRenderer>(
         SDL_CreateRenderer(win.get(), nullptr));
 
     if (!rdr) {
-        fmt::print(stderr,"sdl create render error:{}", SDL_GetError());
+        fmt::println(stderr, "sdl create render error:{}", SDL_GetError());
         return -1;
     }
 
@@ -72,6 +78,8 @@ auto main(int argc, char **argv) -> int {
 
         std::this_thread::sleep_for(SLEEP_DURATION);
     }
+
+    LLHook::destory();
 
     return 0;
 }
