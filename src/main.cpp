@@ -6,6 +6,7 @@
 #include "define.hpp"
 #include "helper/sdl_ptr_factory.hpp"
 #include "helper/screen.hpp"
+#include "helper/showWinInMousePos.hpp"
 #include "llhook/hook.hpp"
 
 auto main(int argc, char **argv) -> int {
@@ -66,7 +67,7 @@ auto main(int argc, char **argv) -> int {
         for (auto event = queue.Pop(); event.has_value(); event = queue.Pop()) {
             switch (*event) {
             case Event::WIN_DISPLAY:
-                SDL_ShowWindow(win.get());
+                showWinInMousePos(win.get());
                 isWindowShow = true;
                 break;
             case Event::WIN_HIDE:
