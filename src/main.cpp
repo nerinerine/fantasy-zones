@@ -12,7 +12,7 @@
 auto main(int argc, char **argv) -> int {
     // init sdl
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        fmt::print("sdl init error:{}", SDL_GetError());
+        fmt::print(stderr,"sdl init error:{}", SDL_GetError());
         return -1;
     }
 
@@ -31,7 +31,7 @@ auto main(int argc, char **argv) -> int {
                          SDL_WINDOW_BORDERLESS));
 
     if (!win) {
-        fmt::print("sdl create window error:{}", SDL_GetError());
+        fmt::print(stderr,"sdl create window error:{}", SDL_GetError());
         return -1;
     }
 
@@ -46,7 +46,7 @@ auto main(int argc, char **argv) -> int {
         SDL_CreateRenderer(win.get(), nullptr));
 
     if (!rdr) {
-        fmt::print("sdl create render error:{}", SDL_GetError());
+        fmt::print(stderr,"sdl create render error:{}", SDL_GetError());
         return -1;
     }
 
