@@ -5,7 +5,7 @@
 
 #include "define.hpp"
 #include "helper/sdl_ptr_factory.hpp"
-#include "helper/screen.hpp"
+#include "desktop_info/info.hpp"
 #include "helper/showWinInMousePos.hpp"
 #include "llhook/hook.hpp"
 
@@ -22,16 +22,12 @@ auto main(int argc, char **argv) -> int {
     const auto SDLModelHandle = SDLPtrFactoryGen<SDL_Quit>();
 
     // create window
-    const auto screenSize = getScreenSize();
-    const auto winWidth = static_cast<int>(screenSize.width *
-                                           WINDOW_WIDTH_SCALE);
-    const auto winHeight = static_cast<int>(screenSize.height *
-                                            WINDOW_HEIGHT_SCALE);
+    const auto windowSize = getWindowSize(getScreenSize());
 
     const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
-                         winWidth,
-                         winHeight,
+                         windowSize.width,
+                         windowSize.height,
                          SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
 
     if (!win) {
