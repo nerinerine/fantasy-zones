@@ -1,8 +1,9 @@
 #pragma once
 
-#include "lockfree/spsc/queue.hpp"
-#include "../event.hpp"
 #include <stop_token>
+#include <lockfree/spsc/queue.hpp>
+
+#include "../event.hpp"
 
 struct LLHook {
     static constexpr int QUEUE_SIZE = 256;

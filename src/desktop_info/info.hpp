@@ -1,7 +1,7 @@
 #pragma once
 struct Rect {
-    int width;
-    int height;
+    int w;
+    int h;
 };
 
 auto getScreenSize() -> Rect;

@@ -1,6 +1,6 @@
 #include <thread>
 
-#include <fmt/core.h>
+#include <fmt/base.h>
 #include <SDL3/SDL.h>
 
 #include "define.hpp"
@@ -26,8 +26,8 @@ auto main(int argc, char **argv) -> int {
 
     const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
-                         windowSize.width,
-                         windowSize.height,
+                         windowSize.w,
+                         windowSize.h,
                          SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
 
     if (!win) {
@@ -61,21 +61,24 @@ auto main(int argc, char **argv) -> int {
 
     while (!shouldQuit) {
         for (auto event = queue.Pop(); event.has_value(); event = queue.Pop()) {
-            switch (*event) {
-            case Event::WIN_DISPLAY:
-                showWinInMousePos(win.get());
-                isWindowShow = true;
-                break;
-            case Event::WIN_HIDE:
-                SDL_HideWindow(win.get());
-                isWindowShow = false;
-                break;
-            case Event::THREAD_STOP:
-                shouldQuit = true;
-                break;
-            default:
-                break;
-            }
+            event.and_then([&](Event e) -> std::optional<Event> {
+                switch (e) {
+                case Event::WIN_DISPLAY:
+                    showWinInMousePos(win.get());
+                    isWindowShow = true;
+                    break;
+                case Event::WIN_HIDE:
+                    SDL_HideWindow(win.get());
+                    isWindowShow = false;
+                    break;
+                case Event::THREAD_STOP:
+                    shouldQuit = true;
+                    break;
+                default:
+                    break;
+                }
+                return std::nullopt;
+            });
         }
 
         while (SDL_PollEvent(&event)) {
