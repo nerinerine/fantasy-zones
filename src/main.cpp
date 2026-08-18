@@ -7,6 +7,7 @@
 #include "helper/sdl_ptr_factory.hpp"
 #include "desktop_info/info.hpp"
 #include "helper/showWinInMousePos.hpp"
+#include "helper/grid.hpp"
 #include "llhook/hook.hpp"
 
 auto main(int argc, char **argv) -> int {
@@ -53,6 +54,10 @@ auto main(int argc, char **argv) -> int {
         fmt::println(stderr, "sdl create render error:{}", SDL_GetError());
         return -1;
     }
+
+    // load config
+    auto config = loadConfig("setting.ini");
+
 
     // main loop
     SDL_Event event{};

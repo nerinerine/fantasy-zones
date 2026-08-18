@@ -4,18 +4,18 @@
 
 #include "../desktop_info/info.hpp"
 
-auto loadConfig(std::string &Path) -> GridList {
+auto loadConfig(const std::string &Path) -> GridList {
     GridList list{};
 
     mINI::INIFile configFile{ Path };
     mINI::INIStructure config{};
-    if (configFile.read(config)) {
+    if (!configFile.read(config)) {
         fmt::println(stderr, "can't load ini");
         return list;
     }
 
     for (auto const &[section, collection] : config) {
-        if (!section.starts_with("Grid")) {
+        if (!section.starts_with("grid")) {
             continue;
         }
 

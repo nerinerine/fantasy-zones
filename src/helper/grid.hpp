@@ -14,4 +14,4 @@ struct GridItem {
 
 using GridList = std::vector<GridItem>;
 
-auto loadConfig(std::string &Path) -> GridList;
+auto loadConfig(const std::string &Path) -> GridList;
