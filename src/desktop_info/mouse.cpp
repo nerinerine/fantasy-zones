@@ -1,4 +1,4 @@
-#include "./info.hpp"
+#include "info.hpp"
 #include <windows.h>
 
 auto getMousePos() -> Pos {

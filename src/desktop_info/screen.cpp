@@ -1,5 +1,5 @@
 #include <Windows.h>
-#include "./info.hpp"
+#include "info.hpp"
 #include "../define.hpp"
 
 auto getScreenSize() -> Rect {

@@ -15,7 +15,7 @@ auto main(int argc, char **argv) -> int {
                    ""); //使用用户环境默认locale以使fmt可以正常打印宽字符串
 
     // init sdl
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+    if (!SDL_Init(SDL_INIT_VIDEO)) [[unlikely]] {
         fmt::println(stderr, "sdl init error:{}", SDL_GetError());
         return -1;
     }
@@ -31,7 +31,7 @@ auto main(int argc, char **argv) -> int {
                          windowSize.h,
                          SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
 
-    if (!win) {
+    if (!win) [[unlikely]] {
         fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
         return -1;
     }
@@ -50,7 +50,7 @@ auto main(int argc, char **argv) -> int {
     const auto rdr = SDLPtrFactoryGen<SDL_DestroyRenderer>(
         SDL_CreateRenderer(win.get(), nullptr));
 
-    if (!rdr) {
+    if (!rdr) [[unlikely]] {
         fmt::println(stderr, "sdl create render error:{}", SDL_GetError());
         return -1;
     }
@@ -65,7 +65,7 @@ auto main(int argc, char **argv) -> int {
     bool shouldQuit = false;
     bool isWindowShow = false;
 
-    while (!shouldQuit) {
+    while (!shouldQuit) [[likely]] {
         for (auto event = queue.Pop(); event.has_value(); event = queue.Pop()) {
             event.and_then([&](Event e) -> std::optional<Event> {
                 switch (e) {
@@ -93,7 +93,7 @@ auto main(int argc, char **argv) -> int {
             }
         }
 
-        if (!isWindowShow) {
+        if (!isWindowShow) [[likely]] {
             std::this_thread::sleep_for(SLEEP_DURATION);
             continue;
         }

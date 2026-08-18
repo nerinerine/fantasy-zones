@@ -39,7 +39,7 @@ auto CALLBACK altCheckCallback(int nCode, WPARAM wParam, LPARAM lParam)
     const auto queue = Config::instance()->queue;
     if (nCode == HC_ACTION) {
         auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
-        if (pKeyBoard->vkCode == VK_LMENU) {
+        if (pKeyBoard->vkCode == VK_LMENU) [[unlikely]] {
             if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
                 Config::instance()->isAltkeyPushing = true;
             }
@@ -103,7 +103,7 @@ auto LLHook::init(LLHook::EventQueue *queue) noexcept -> bool {
                                           WINEVENT_OUTOFCONTEXT |
                                               WINEVENT_SKIPOWNPROCESS);
 
-    if (!config->winMoveHook) {
+    if (!config->winMoveHook) [[unlikely]] {
         fmt::println("set win event hook error{}", GetLastError());
         return false;
     }
@@ -117,8 +117,8 @@ auto LLHook::init(LLHook::EventQueue *queue) noexcept -> bool {
 // NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
 void LLHook::run(std::stop_token token) noexcept {
     MSG msg;
-    while (!token.stop_requested()) {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+    while (!token.stop_requested()) [[unlikely]] {
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) [[unlikely]] {
             // 其实这个检测应该没什么用，但是D指导这么写了...(目移)
             if (msg.message == WM_QUIT)
                 break;
