@@ -79,7 +79,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
 auto LLHook::init(LLHook::EventQueue *queue) noexcept -> bool {
     auto config = Config::instance();
 
-    if (config->init) {
+    if (config->init) [[unlikely]] {
         return true;
     }
 
@@ -89,7 +89,7 @@ auto LLHook::init(LLHook::EventQueue *queue) noexcept -> bool {
                                       0                 //0表示全局hook
     );
 
-    if (!config->kbHook) {
+    if (!config->kbHook) [[unlikely]] {
         fmt::println("set hook error{}", GetLastError());
         return false;
     }

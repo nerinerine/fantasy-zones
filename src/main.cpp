@@ -62,6 +62,7 @@ auto main(int argc, char **argv) -> int {
 
     // main loop
     SDL_Event event{};
+    SDL_Point WinPos{};
     bool shouldQuit = false;
     bool isWindowShow = false;
 
@@ -70,7 +71,7 @@ auto main(int argc, char **argv) -> int {
             event.and_then([&](Event e) -> std::optional<Event> {
                 switch (e) {
                 case Event::WIN_DISPLAY:
-                    showWinInMousePos(win.get());
+                    WinPos = showWinInMousePos(win.get());
                     isWindowShow = true;
                     break;
                 case Event::WIN_HIDE:
@@ -88,7 +89,7 @@ auto main(int argc, char **argv) -> int {
         }
 
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EventType::SDL_EVENT_QUIT) {
+            if (event.type == SDL_EventType::SDL_EVENT_QUIT) [[unlikely]] {
                 shouldQuit = true;
             }
         }
@@ -98,8 +99,26 @@ auto main(int argc, char **argv) -> int {
             continue;
         }
 
+        const SDL_FPoint mouse_relPos{
+            .x = static_cast<float>(getMousePos().x - WinPos.x),
+            .y = static_cast<float>(getMousePos().y - WinPos.y)
+        };
+
         for (const auto &grid : config) {
             grid.draw(rdr.get());
+
+            const auto checkRect = grid.outerDisplayRect();
+            if (SDL_PointInRectFloat(&mouse_relPos, &checkRect)) {
+                const GridItem activeGrid{ .x = grid.x,
+                                           .y = grid.y,
+                                           .w = grid.w,
+                                           .h = grid.h,
+                                           .col = SDL_Color{ .r = 0xff,
+                                                             .g = 0xff,
+                                                             .b = 0xff,
+                                                             .a = 0xff } };
+                activeGrid.drawInner(rdr.get());
+            }
         }
 
         SDL_RenderPresent(rdr.get());
