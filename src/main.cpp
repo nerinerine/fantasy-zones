@@ -7,7 +7,7 @@
 #include "helper/sdl_ptr_factory.hpp"
 #include "desktop_info/info.hpp"
 #include "helper/showWinInMousePos.hpp"
-#include "helper/grid.hpp"
+#include "grid/grid.hpp"
 #include "llhook/hook.hpp"
 
 auto main(int argc, char **argv) -> int {
@@ -55,9 +55,10 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
-    // load config
-    auto config = loadConfig("setting.ini");
+    SDL_SetRenderDrawBlendMode(rdr.get(), SDL_BLENDMODE_BLEND);
 
+    // load config
+    const auto config = loadConfig("setting.ini");
 
     // main loop
     SDL_Event event{};
@@ -95,6 +96,10 @@ auto main(int argc, char **argv) -> int {
         if (!isWindowShow) {
             std::this_thread::sleep_for(SLEEP_DURATION);
             continue;
+        }
+
+        for (const auto &grid : config) {
+            grid.draw(rdr.get());
         }
 
         SDL_RenderPresent(rdr.get());
