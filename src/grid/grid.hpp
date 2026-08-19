@@ -5,6 +5,7 @@
 
 struct GridItem {
     static constexpr int BORDER = 5;
+    static double shadowOffset;
     double x{};
     double y{};
     double w{};
@@ -16,6 +17,7 @@ struct GridItem {
     void drawBorder(SDL_Renderer *rdr) const noexcept;
     void drawInner(SDL_Renderer *rdr) const noexcept;
     void draw(SDL_Renderer *rdr) const noexcept;
+    void drawShadow(SDL_Renderer *rdr) const noexcept;
 };
 
 using GridList = std::vector<GridItem>;

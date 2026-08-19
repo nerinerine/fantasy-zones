@@ -1,6 +1,7 @@
 #include "grid.hpp"
 
 #include <array>
+#include <ranges>
 #include <cstdint>
 #include <mini/ini.h>
 #include <fmt/base.h>
@@ -8,6 +9,9 @@
 
 #include "../desktop_info/info.hpp"
 #include "gen_color.hpp"
+
+constexpr uint8_t BORDER_ALPHA = UINT8_MAX;
+double GridItem::shadowOffset{};
 
 auto loadConfig(const std::string &Path) -> GridList {
     GridList list{};
@@ -73,7 +77,6 @@ auto loadConfig(const std::string &Path) -> GridList {
 }
 
 void GridItem::drawBorder(SDL_Renderer *rdr) const noexcept {
-    constexpr uint8_t BORDER_ALPHA = UINT8_MAX;
     const auto &inner = innerDisplayRect();
     const auto &outer = outerDisplayRect();
 
@@ -106,4 +109,27 @@ void GridItem::drawInner(SDL_Renderer *rdr) const noexcept {
 void GridItem::draw(SDL_Renderer *rdr) const noexcept {
     drawBorder(rdr);
     drawInner(rdr);
+}
+
+void GridItem::drawShadow(SDL_Renderer *rdr) const noexcept {
+    using std::ranges::views::iota;
+
+    SDL_SetRenderDrawColor(rdr, col.r, col.g, col.b, BORDER_ALPHA);
+
+    auto inner = innerDisplayRect();
+
+    for (auto i = shadowOffset; i < inner.w + inner.h; i += 10) {
+        const double x1 = i > inner.w ? inner.x + inner.w : inner.x + i;
+        const double y1 = i > inner.w ? i - inner.w + inner.y : inner.y;
+        const double x2 = i > inner.h ? i - inner.h + inner.x : inner.x;
+        const double y2 = i > inner.h ? inner.y + inner.h : inner.y + i;
+
+        SDL_RenderLine(rdr,
+                       static_cast<float>(x1),
+                       static_cast<float>(y1),
+                       static_cast<float>(x2),
+                       static_cast<float>(y2));
+    }
+
+    shadowOffset = std::fmod(shadowOffset + 1, 10);
 }

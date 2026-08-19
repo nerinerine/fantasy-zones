@@ -109,15 +109,17 @@ auto main(int argc, char **argv) -> int {
 
             const auto checkRect = grid.outerDisplayRect();
             if (SDL_PointInRectFloat(&mouse_relPos, &checkRect)) {
+                // grid.drawShadow(rdr.get());
                 const GridItem activeGrid{ .x = grid.x,
                                            .y = grid.y,
                                            .w = grid.w,
                                            .h = grid.h,
-                                           .col = SDL_Color{ .r = 0xff,
+                                           .col = SDL_Color{ .r = 0x00,
                                                              .g = 0xff,
-                                                             .b = 0xff,
+                                                             .b = 0xcc,
                                                              .a = 0xff } };
-                activeGrid.drawInner(rdr.get());
+                activeGrid.drawBorder(rdr.get());
+                activeGrid.drawShadow(rdr.get());
             }
         }
 
