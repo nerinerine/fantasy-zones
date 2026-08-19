@@ -13,7 +13,7 @@
 constexpr uint8_t BORDER_ALPHA = UINT8_MAX;
 double GridItem::shadowOffset{};
 
-auto loadConfig(const std::string &Path) -> GridList {
+auto loadConfig(const std::string_view Path) -> GridList {
     GridList list{};
 
     mINI::INIFile configFile{ Path };
@@ -80,17 +80,22 @@ void GridItem::drawBorder(SDL_Renderer *rdr) const noexcept {
     const auto &inner = innerDisplayRect();
     const auto &outer = outerDisplayRect();
 
+    //  构造四个边框矩形，每条宽度为 BORDER，它们共同覆盖 outer 与 inner 之间的环形区域
     const std::array borderList{
+        // outer左上至inner右下
         SDL_FRect{
             .x = outer.x, .y = outer.y, .w = BORDER, .h = inner.h + BORDER },
+        // outer左下至inner右上
         SDL_FRect{ .x = outer.x,
                    .y = inner.y + inner.h,
                    .w = inner.w + BORDER,
                    .h = BORDER },
+        //    outer右下至inner右上
         SDL_FRect{ .x = inner.x + inner.w,
                    .y = inner.y,
                    .w = BORDER,
                    .h = inner.h + BORDER },
+        //    outer右上至inner左上
         SDL_FRect{
             .x = inner.x, .y = outer.y, .w = inner.w + BORDER, .h = BORDER },
     };
@@ -113,16 +118,25 @@ void GridItem::draw(SDL_Renderer *rdr) const noexcept {
 
 void GridItem::drawShadow(SDL_Renderer *rdr) const noexcept {
     using std::ranges::views::iota;
-
     SDL_SetRenderDrawColor(rdr, col.r, col.g, col.b, BORDER_ALPHA);
 
-    auto inner = innerDisplayRect();
+    const auto inner = innerDisplayRect();
+    const int lineCount = floor((inner.w + inner.h) / SHADOW_SPACE);
 
-    for (auto i = shadowOffset; i < inner.w + inner.h; i += 10) {
-        const double x1 = i > inner.w ? inner.x + inner.w : inner.x + i;
-        const double y1 = i > inner.w ? i - inner.w + inner.y : inner.y;
-        const double x2 = i > inner.h ? i - inner.h + inner.x : inner.x;
-        const double y2 = i > inner.h ? inner.y + inner.h : inner.y + i;
+    for (const auto i : iota(0, lineCount)) {
+        // 这一段懒得写注释了，让我们看看D指导怎么说
+        // 绘制动态对角线阴影线条，方向为从左上向右下移动（45° 斜线）。
+        // 原理：以阴影间距 SHADOW_SPACE 为步长，分别遍历整个内矩形区域的上右边和左下边。
+        // 这样所有线条均平行且均匀分布，形成斜线纹理。
+        // 同时，shadowOffset 随时间递增并取模，使线条整体平移，产生流动动画效果。
+
+        // 以及，shadowOffset仅在SHADOW_SPACE范围内循环，
+        const float pos = static_cast<float>(i) * SHADOW_SPACE;
+        const double x1 = pos > inner.w ? inner.x + inner.w : inner.x + pos;
+        const double y1 = pos > inner.w ? pos - inner.w + inner.y : inner.y;
+
+        const double x2 = pos > inner.h ? pos - inner.h + inner.x : inner.x;
+        const double y2 = pos > inner.h ? inner.y + inner.h : inner.y + pos;
 
         SDL_RenderLine(rdr,
                        static_cast<float>(x1),
@@ -131,5 +145,5 @@ void GridItem::drawShadow(SDL_Renderer *rdr) const noexcept {
                        static_cast<float>(y2));
     }
 
-    shadowOffset = std::fmod(shadowOffset + 1, 10);
+    shadowOffset = std::fmod(shadowOffset + 1, SHADOW_SPACE);
 }
