@@ -16,3 +16,5 @@ target("fantasy_zones")
 
     add_headerfiles("src/**.hpp")
     add_files("src/**.cpp")
+
+    add_links("dwmapi")
