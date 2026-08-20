@@ -9,6 +9,7 @@
 #include "helper/showWinInMousePos.hpp"
 #include "grid/grid.hpp"
 #include "llhook/hook.hpp"
+#include "helper/set_point_window_pos.hpp"
 
 auto main(int argc, char **argv) -> int {
     std::setlocale(LC_ALL,
@@ -76,6 +77,11 @@ auto main(int argc, char **argv) -> int {
                     break;
                 case Event::WIN_HIDE:
                     SDL_HideWindow(win.get());
+
+                    if (isWindowShow) {
+                        // setPointWindowPos();
+                    }
+
                     isWindowShow = false;
                     break;
                 case Event::THREAD_STOP:

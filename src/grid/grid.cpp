@@ -131,7 +131,7 @@ void GridItem::drawShadow(SDL_Renderer *rdr) const noexcept {
         // 同时，shadowOffset 随时间递增并取模，使线条整体平移，产生流动动画效果。
 
         // 以及，shadowOffset仅在SHADOW_SPACE范围内循环，
-        const float pos = static_cast<float>(i) * SHADOW_SPACE;
+        const auto pos = static_cast<float>(i * SHADOW_SPACE + shadowOffset);
         const double x1 = pos > inner.w ? inner.x + inner.w : inner.x + pos;
         const double y1 = pos > inner.w ? pos - inner.w + inner.y : inner.y;
 
