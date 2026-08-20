@@ -64,6 +64,7 @@ auto main(int argc, char **argv) -> int {
     // main loop
     SDL_Event event{};
     SDL_Point WinPos{};
+    const GridItem *activeGrid = nullptr;
     bool shouldQuit = false;
     bool isWindowShow = false;
 
@@ -78,8 +79,8 @@ auto main(int argc, char **argv) -> int {
                 case Event::WIN_HIDE:
                     SDL_HideWindow(win.get());
 
-                    if (isWindowShow) {
-                        // setPointWindowPos();
+                    if (isWindowShow && activeGrid) {
+                        setPointWindowPos(activeGrid);
                     }
 
                     isWindowShow = false;
@@ -110,11 +111,13 @@ auto main(int argc, char **argv) -> int {
             .y = static_cast<float>(getMousePos().y - WinPos.y)
         };
 
+        activeGrid = nullptr;
         for (const auto &grid : config) {
             grid.draw(rdr.get());
 
             const auto checkRect = grid.outerDisplayRect();
             if (SDL_PointInRectFloat(&mouse_relPos, &checkRect)) {
+                activeGrid = &grid;
                 const GridItem activeGrid{ .x = grid.x,
                                            .y = grid.y,
                                            .w = grid.w,
