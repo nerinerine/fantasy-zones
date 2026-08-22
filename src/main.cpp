@@ -2,6 +2,7 @@
 
 #include <fmt/base.h>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_tray.h>
 
 #include "define.hpp"
 #include "helper/sdl_ptr_factory.hpp"
@@ -60,6 +61,15 @@ auto main(int argc, char **argv) -> int {
 
     // load config
     const auto config = loadConfig("setting.ini");
+
+    // init tray icon
+    auto tray = SDLPtrFactoryGen<SDL_DestroyTray>(
+        SDL_CreateTray(nullptr, "fantacyZone"));
+
+    if (!tray) {
+        fmt::println(stderr, "sdl create tray error:{}", SDL_GetError());
+        return -1;
+    }
 
     // main loop
     SDL_Event event{};
