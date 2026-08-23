@@ -49,10 +49,6 @@ auto CALLBACK altCheckCallback(int nCode, WPARAM wParam, LPARAM lParam)
             submitWindowEvent();
         }
 
-        // 这是暂时的，毕竟总得有个正常退出的方法
-        if (pKeyBoard->vkCode == *"C") {
-            queue->Push(Event::THREAD_STOP);
-        }
     }
 
     return CallNextHookEx(Config::instance()->kbHook, nCode, wParam, lParam);

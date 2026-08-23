@@ -6,5 +6,4 @@ enum class Event : uint8_t {
     WIN_HIDE,
     THREAD_PAUSE,
     THREAD_RUN,
-    THREAD_STOP,
 };

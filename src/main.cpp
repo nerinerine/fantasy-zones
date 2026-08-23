@@ -63,6 +63,8 @@ auto main(int argc, char **argv) -> int {
     const auto config = loadConfig("setting.ini");
 
     // init tray icon
+    bool shouldQuit = false;
+
     auto tray = SDLPtrFactoryGen<SDL_DestroyTray>(
         SDL_CreateTray(nullptr, "fantacyZone"));
 
@@ -71,11 +73,21 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
+    auto menu = SDL_CreateTrayMenu(tray.get());
+    auto quitEntry =
+        SDL_InsertTrayEntryAt(menu, -1, "quit", SDL_TRAYENTRY_BUTTON);
+    SDL_SetTrayEntryCallback(
+        quitEntry,
+        [](void *userdata, SDL_TrayEntry *entry) -> void {
+            bool *shouldQuit = static_cast<bool *>(userdata);
+            *shouldQuit = true;
+        },
+        &shouldQuit);
+
     // main loop
     SDL_Event event{};
     SDL_Point WinPos{};
     const GridItem *activeGrid = nullptr;
-    bool shouldQuit = false;
     bool isWindowShow = false;
 
     while (!shouldQuit) [[likely]] {
@@ -94,9 +106,6 @@ auto main(int argc, char **argv) -> int {
                     }
 
                     isWindowShow = false;
-                    break;
-                case Event::THREAD_STOP:
-                    shouldQuit = true;
                     break;
                 default:
                     break;
