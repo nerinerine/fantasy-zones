@@ -61,7 +61,7 @@ auto main(int argc, char **argv) -> int {
     SDL_SetRenderDrawBlendMode(rdr.get(), SDL_BLENDMODE_BLEND);
 
     // load config
-    const auto config = loadConfig("setting.ini");
+    const auto config = loadConfig("./setting.json");
 
     // init tray icon
     bool shouldQuit = false;
@@ -134,22 +134,23 @@ auto main(int argc, char **argv) -> int {
 
         activeGrid = nullptr;
         for (const auto &grid : config) {
-            grid.draw(rdr.get());
-
-            const auto checkRect = grid.outerDisplayRect();
-            if (SDL_PointInRectFloat(&mouse_relPos, &checkRect)) {
-                activeGrid = &grid;
-                const GridItem activeGrid{ .x = grid.x,
-                                           .y = grid.y,
-                                           .w = grid.w,
-                                           .h = grid.h,
-                                           .col = SDL_Color{ .r = 0x00,
-                                                             .g = 0xff,
-                                                             .b = 0xcc,
-                                                             .a = 0xff } };
-                activeGrid.drawBorder(rdr.get());
-                activeGrid.drawShadow(rdr.get());
+            if (grid.visible) [[unlikely]] {
+                grid.hitRect.drawBorder(grid.col, rdr.get());
+                grid.hitRect.drawInner(grid.col, rdr.get());
             }
+
+            const auto checkRect = grid.hitRect.outerDisplayRect();
+            if (!activeGrid &&
+                SDL_PointInRectFloat(&mouse_relPos, &checkRect)) {
+                activeGrid = &grid;
+            }
+        }
+
+        if (activeGrid) {
+            const DRect activeRect = activeGrid->targetRect;
+            const SDL_Color col{ .r = 0x00, .g = 0xff, .b = 0xcc, .a = 0xff };
+            activeRect.drawBorder(col, rdr.get());
+            activeRect.drawShadow(col, rdr.get());
         }
 
         SDL_RenderPresent(rdr.get());

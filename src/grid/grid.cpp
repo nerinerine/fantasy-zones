@@ -13,7 +13,7 @@
 #include "../helper/sdl_ptr_factory.hpp"
 
 constexpr uint8_t BORDER_ALPHA = UINT8_MAX;
-double GridItem::shadowOffset{};
+double DRect::shadowOffset{};
 
 void configDRectWith(DRect *const rect, yyjson_val *configItem) {
     // 一些模板代码
@@ -59,14 +59,30 @@ void configGridWith(GridItem *const item, yyjson_val *const configItem) {
             configDRectWith(&(item->targetRect), val);
         }
     }
+    item->col = genColor();
 }
 
-// TODO: 目前这个函数在文件不存在时会抛出异常，记得修。
+// TODO: 目前这个函数在文件不存在时不会做任何处理，记得修。
 auto loadConfig(const std::filesystem::path &path) -> GridList {
     GridList list{};
 
-    auto configDoc = SDLPtrFactoryGen<yyjson_doc_free>(yyjson_read_file(
-        path.string().data(), YYJSON_READ_NOFLAG, nullptr, nullptr));
+    if (!std::filesystem::exists(path)) {
+        fmt::println(stderr, "config not exist");
+    }
+
+    yyjson_read_err err{};
+
+    auto configDoc = SDLPtrFactoryGen<yyjson_doc_free>(
+        yyjson_read_file(std::filesystem::canonical(path).string().data(),
+                         YYJSON_READ_NOFLAG,
+                         nullptr,
+                         &err));
+
+    if (err.code != YYJSON_PTR_ERR_NONE) {
+        std::string_view errView{ err.msg };
+        fmt::println(stderr, "can't parse config on {}:{}", err.pos, errView);
+        return {};
+    }
 
     yyjson_val *rootArray = yyjson_doc_get_root(configDoc.get());
 
@@ -81,7 +97,7 @@ auto loadConfig(const std::filesystem::path &path) -> GridList {
     return list;
 }
 
-[[nodiscard]] auto GridItem::innerDisplayRect() const noexcept -> SDL_FRect {
+[[nodiscard]] auto DRect::innerDisplayRect() const noexcept -> SDL_FRect {
     const auto size = getWindowSize(getScreenSize());
 
     const auto _innerW = static_cast<float>(size.w * w - BORDER * 2);
@@ -98,7 +114,7 @@ auto loadConfig(const std::filesystem::path &path) -> GridList {
     };
 }
 
-[[nodiscard]] auto GridItem::outerDisplayRect() const noexcept -> SDL_FRect {
+[[nodiscard]] auto DRect::outerDisplayRect() const noexcept -> SDL_FRect {
     const auto size = getWindowSize(getScreenSize());
     return {
         .x = static_cast<float>(size.w * x),
@@ -108,7 +124,7 @@ auto loadConfig(const std::filesystem::path &path) -> GridList {
     };
 }
 
-[[nodiscard]] auto GridItem::realRect() const noexcept -> SDL_Rect {
+[[nodiscard]] auto DRect::realRect() const noexcept -> SDL_Rect {
     const auto size = getScreenSize();
     return {
         .x = static_cast<int>(size.w * x),
@@ -118,7 +134,7 @@ auto loadConfig(const std::filesystem::path &path) -> GridList {
     };
 }
 
-void GridItem::drawBorder(SDL_Renderer *rdr) const noexcept {
+void DRect::drawBorder(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
     const auto &inner = innerDisplayRect();
     const auto &outer = outerDisplayRect();
 
@@ -145,7 +161,7 @@ void GridItem::drawBorder(SDL_Renderer *rdr) const noexcept {
     SDL_RenderFillRects(rdr, borderList.data(), borderList.size());
 }
 
-void GridItem::drawInner(SDL_Renderer *rdr) const noexcept {
+void DRect::drawInner(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
     constexpr uint8_t BG_ALPHA = UINT8_MAX / 4;
     const auto &inner = innerDisplayRect();
 
@@ -153,12 +169,7 @@ void GridItem::drawInner(SDL_Renderer *rdr) const noexcept {
     SDL_RenderFillRect(rdr, &inner);
 }
 
-void GridItem::draw(SDL_Renderer *rdr) const noexcept {
-    drawBorder(rdr);
-    drawInner(rdr);
-}
-
-void GridItem::drawShadow(SDL_Renderer *rdr) const noexcept {
+void DRect::drawShadow(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
     using std::ranges::views::iota;
     SDL_SetRenderDrawColor(rdr, col.r, col.g, col.b, BORDER_ALPHA);
 

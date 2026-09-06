@@ -24,7 +24,7 @@ void setPointWindowPos(const GridItem *grid) noexcept {
     int offsetX = shadowRect.left - windowRect.left;
     int offsetY = shadowRect.top - windowRect.top;
 
-    const auto toRect = grid->realRect();
+    const auto toRect = grid->targetRect.realRect();
     SetWindowPos(pointWindow,
                  nullptr,
                  toRect.x - offsetX,
