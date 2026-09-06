@@ -1,3 +1,4 @@
+#pragma comment(linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"")
 #include <thread>
 
 #include <fmt/base.h>
@@ -91,6 +92,7 @@ auto main(int argc, char **argv) -> int {
     bool isWindowShow = false;
 
     while (!shouldQuit) [[likely]] {
+        // 来自hook线程的事件
         for (auto event = queue.Pop(); event.has_value(); event = queue.Pop()) {
             event.and_then([&](Event e) -> std::optional<Event> {
                 switch (e) {
@@ -113,13 +115,13 @@ auto main(int argc, char **argv) -> int {
                 return std::nullopt;
             });
         }
-
+        // SDL自身的事件
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EventType::SDL_EVENT_QUIT) [[unlikely]] {
                 shouldQuit = true;
             }
         }
-
+        // 窗口未显示时跳过渲染
         if (!isWindowShow) [[likely]] {
             std::this_thread::sleep_for(SLEEP_DURATION);
             continue;
