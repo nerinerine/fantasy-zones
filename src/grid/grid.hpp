@@ -1,16 +1,24 @@
 #pragma once
 #include <vector>
-#include <string_view>
+#include <filesystem>
 #include <SDL3/SDL.h>
+
+struct DRect {
+    double x{};
+    double y{};
+    double w{};
+    double h{};
+};
 
 struct GridItem {
     static constexpr int BORDER = 5;
     static constexpr int SHADOW_SPACE = 10;
     static double shadowOffset;
-    double x{};
-    double y{};
-    double w{};
-    double h{};
+
+    bool visible{};
+    DRect hitRect{};
+    DRect targetRect{};
+
     SDL_Color col{};
     // 计算内部矩形
     [[nodiscard]] auto innerDisplayRect() const noexcept -> SDL_FRect;
@@ -26,4 +34,4 @@ struct GridItem {
 
 using GridList = std::vector<GridItem>;
 
-auto loadConfig(const std::string_view Path) -> GridList;
+auto loadConfig(const std::filesystem::path& path) -> GridList;

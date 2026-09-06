@@ -3,37 +3,79 @@
 #include <array>
 #include <ranges>
 #include <cstdint>
-#include <mini/ini.h>
+
+#include <yyjson.h>
 #include <fmt/base.h>
 #include <SDL3/SDL.h>
 
 #include "../desktop_info/info.hpp"
 #include "gen_color.hpp"
+#include "../helper/sdl_ptr_factory.hpp"
 
 constexpr uint8_t BORDER_ALPHA = UINT8_MAX;
 double GridItem::shadowOffset{};
 
-auto loadConfig(const std::string_view Path) -> GridList {
+void configDRectWith(DRect *const rect, yyjson_val *configItem) {
+    // 一些模板代码
+    yyjson_val *key{}, *val{};
+    yyjson_obj_iter iter = yyjson_obj_iter_with(configItem);
+    while ((key = yyjson_obj_iter_next(&iter))) {
+        val = yyjson_obj_iter_get_val(key);
+        // 真正实现逻辑的部分
+
+        switch (*yyjson_get_str(key)) {
+        case *"x":
+            rect->x = yyjson_get_num(val);
+            break;
+        case *"y":
+            rect->y = yyjson_get_num(val);
+            break;
+        case *"w":
+            rect->w = yyjson_get_num(val);
+            break;
+        case *"h":
+            rect->h = yyjson_get_num(val);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+void configGridWith(GridItem *const item, yyjson_val *const configItem) {
+    // 一些模板代码
+    yyjson_val *key{}, *val{};
+    yyjson_obj_iter iter = yyjson_obj_iter_with(configItem);
+    while ((key = yyjson_obj_iter_next(&iter))) {
+        val = yyjson_obj_iter_get_val(key);
+        std::string_view keyView{ yyjson_get_str(key), yyjson_get_len(key) };
+
+        // 真正实现逻辑的部分
+        if (keyView == "visible") {
+            item->visible = yyjson_get_bool(val);
+        } else if (keyView == "hitRect") {
+            configDRectWith(&(item->hitRect), val);
+        } else if (keyView == "targetRect") {
+            configDRectWith(&(item->targetRect), val);
+        }
+    }
+}
+
+// TODO: 目前这个函数在文件不存在时会抛出异常，记得修。
+auto loadConfig(const std::filesystem::path &path) -> GridList {
     GridList list{};
 
-    mINI::INIFile configFile{ Path };
-    mINI::INIStructure config{};
-    if (!configFile.read(config)) {
-        fmt::println(stderr, "can't load ini");
-        return list;
-    }
+    auto configDoc = SDLPtrFactoryGen<yyjson_doc_free>(yyjson_read_file(
+        path.string().data(), YYJSON_READ_NOFLAG, nullptr, nullptr));
 
-    for (auto const &[section, collection] : config) {
-        if (!section.starts_with("grid")) {
-            continue;
-        }
+    yyjson_val *rootArray = yyjson_doc_get_root(configDoc.get());
 
-        const auto x = std::stod(collection.get("x"));
-        const auto y = std::stod(collection.get("y"));
-        const auto w = std::stod(collection.get("w"));
-        const auto h = std::stod(collection.get("h"));
+    yyjson_arr_iter iter = yyjson_arr_iter_with(rootArray);
 
-        list.push_back({ .x = x, .y = y, .w = w, .h = h, .col = genColor() });
+    yyjson_val *configItem{};
+    while ((configItem = yyjson_arr_iter_next(&iter))) {
+        list.push_back({});
+        configGridWith(std::to_address(list.end() - 1), configItem);
     }
 
     return list;
