@@ -17,9 +17,9 @@ struct DRect {
     [[nodiscard]] auto outerDisplayRect() const noexcept -> SDL_FRect;
     // 计算窗口实际将要移到的矩形
     [[nodiscard]] auto realRect() const noexcept -> SDL_Rect;
-    void drawBorder(const SDL_Color col, SDL_Renderer *rdr) const noexcept;
-    void drawInner(const SDL_Color col, SDL_Renderer *rdr) const noexcept;
-    void drawShadow(const SDL_Color col, SDL_Renderer *rdr) const noexcept;
+    void drawBorder(const SDL_Color col, SDL_Renderer *rdr) const;
+    void drawInner(const SDL_Color col, SDL_Renderer *rdr) const;
+    void drawShadow(const SDL_Color col, SDL_Renderer *rdr) const;
 };
 
 struct GridItem {

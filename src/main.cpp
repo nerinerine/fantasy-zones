@@ -6,7 +6,7 @@
 #include <SDL3/SDL_tray.h>
 
 #include "define.hpp"
-#include "helper/sdl_ptr_factory.hpp"
+#include "helper/make_unique_with.hpp"
 #include "desktop_info/info.hpp"
 #include "helper/showWinInMousePos.hpp"
 #include "grid/grid.hpp"
@@ -23,12 +23,12 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
-    const auto SDLModelHandle = SDLPtrFactoryGen<SDL_Quit>();
+    const auto SDLModelHandle = MakeUniqueWith<SDL_Quit>();
 
     // create window
     const auto windowSize = getWindowSize(getScreenSize());
 
-    const auto win = SDLPtrFactoryGen<SDL_DestroyWindow>(
+    const auto win = MakeUniqueWith<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
                          windowSize.w,
                          windowSize.h,
@@ -44,13 +44,13 @@ auto main(int argc, char **argv) -> int {
     // reg low level hook
     LLHook::EventQueue queue{};
     LLHook::init(&queue);
-    auto llhookHandle = SDLPtrFactoryGen<LLHook::destory>();
+    auto llhookHandle = MakeUniqueWith<LLHook::destory>();
 
     // start event loop for hook
     auto hookThread = std::jthread(LLHook::run);
 
     // create render
-    const auto rdr = SDLPtrFactoryGen<SDL_DestroyRenderer>(
+    const auto rdr = MakeUniqueWith<SDL_DestroyRenderer>(
         SDL_CreateRenderer(win.get(), nullptr));
 
     if (!rdr) [[unlikely]] {
@@ -66,7 +66,7 @@ auto main(int argc, char **argv) -> int {
     // init tray icon
     bool shouldQuit = false;
 
-    auto tray = SDLPtrFactoryGen<SDL_DestroyTray>(
+    auto tray = MakeUniqueWith<SDL_DestroyTray>(
         SDL_CreateTray(nullptr, "fantacyZone"));
 
     if (!tray) {

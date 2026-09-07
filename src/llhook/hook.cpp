@@ -48,7 +48,6 @@ auto CALLBACK altCheckCallback(int nCode, WPARAM wParam, LPARAM lParam)
             }
             submitWindowEvent();
         }
-
     }
 
     return CallNextHookEx(Config::instance()->kbHook, nCode, wParam, lParam);
@@ -72,7 +71,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
     submitWindowEvent();
 }
 
-auto LLHook::init(LLHook::EventQueue *queue) noexcept -> bool {
+auto LLHook::init(LLHook::EventQueue *queue) -> bool {
     auto config = Config::instance();
 
     if (config->init) [[unlikely]] {

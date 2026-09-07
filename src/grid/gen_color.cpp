@@ -12,7 +12,7 @@ struct HSVColor {
     double v{};
 };
 
-auto mapHSV(const HSVColor &color) -> SDL_Color {
+auto mapHSV(const HSVColor &color) noexcept -> SDL_Color {
     const auto [h, s, v] = color;
 
     assert(0 <= h && h < 360);

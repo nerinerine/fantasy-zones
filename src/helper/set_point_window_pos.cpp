@@ -5,7 +5,7 @@
 #include <windows.h>
 #include <dwmapi.h>
 
-void setPointWindowPos(const GridItem *grid) noexcept {
+void setPointWindowPos(const GridItem *grid) {
     const auto pos = getMousePos();
     auto pointWindow = WindowFromPoint({ .x = pos.x, .y = pos.y });
     LONG_PTR style = GetWindowLongPtr(pointWindow, GWL_STYLE);

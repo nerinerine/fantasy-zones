@@ -10,7 +10,7 @@
 
 #include "../desktop_info/info.hpp"
 #include "gen_color.hpp"
-#include "../helper/sdl_ptr_factory.hpp"
+#include "../helper/make_unique_with.hpp"
 
 constexpr uint8_t BORDER_ALPHA = UINT8_MAX;
 double DRect::shadowOffset{};
@@ -72,7 +72,7 @@ auto loadConfig(const std::filesystem::path &path) -> GridList {
 
     yyjson_read_err err{};
 
-    auto configDoc = SDLPtrFactoryGen<yyjson_doc_free>(
+    auto configDoc = MakeUniqueWith<yyjson_doc_free>(
         yyjson_read_file(std::filesystem::canonical(path).string().data(),
                          YYJSON_READ_NOFLAG,
                          nullptr,
@@ -134,7 +134,7 @@ auto loadConfig(const std::filesystem::path &path) -> GridList {
     };
 }
 
-void DRect::drawBorder(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
+void DRect::drawBorder(const SDL_Color col, SDL_Renderer *rdr) const {
     const auto &inner = innerDisplayRect();
     const auto &outer = outerDisplayRect();
 
@@ -161,7 +161,7 @@ void DRect::drawBorder(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
     SDL_RenderFillRects(rdr, borderList.data(), borderList.size());
 }
 
-void DRect::drawInner(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
+void DRect::drawInner(const SDL_Color col, SDL_Renderer *rdr) const {
     constexpr uint8_t BG_ALPHA = UINT8_MAX / 4;
     const auto &inner = innerDisplayRect();
 
@@ -169,7 +169,7 @@ void DRect::drawInner(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
     SDL_RenderFillRect(rdr, &inner);
 }
 
-void DRect::drawShadow(const SDL_Color col, SDL_Renderer *rdr) const noexcept {
+void DRect::drawShadow(const SDL_Color col, SDL_Renderer *rdr) const {
     using std::ranges::views::iota;
     SDL_SetRenderDrawColor(rdr, col.r, col.g, col.b, BORDER_ALPHA);
 

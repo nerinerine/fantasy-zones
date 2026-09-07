@@ -2,18 +2,18 @@
 #include <bit>
 #include <memory>
 
-// SDLPtrFactory类，用来包装那些由sdl的工厂函数创建，并需要使用对应函数删除的指针。
+// FPDelterFactory类，用来包装那些由sdl的工厂函数创建，并需要使用对应函数删除的指针。
 // （如SDL_CreateWindow和SDL_DestroyWindow）使这些指针也接收RAII机制的管理
 // 也可以用来管理SDL_Init和SDL_Quit这样的全局构造/析构函数
 // ...也许不只能用在sdl上？
 
 // 声明工厂模板
-template <auto del> struct SDLPtrFactory;
+template <auto del> struct FPDelterFactory;
 // 一个生成函数的简写
-template <auto del> const auto SDLPtrFactoryGen = SDLPtrFactory<del>::gen;
+template <auto del> const auto MakeUniqueWith = FPDelterFactory<del>::gen;
 
 // 正常deleter的特化
-template <class T, void (*del)(T *)> struct SDLPtrFactory<del> {
+template <class T, void (*del)(T *)> struct FPDelterFactory<del> {
     //      ^^^ 萃取的目标类  ^^^deleter函数的指针
 
     // 使用gen函数调用
@@ -30,7 +30,7 @@ template <class T, void (*del)(T *)> struct SDLPtrFactory<del> {
 };
 
 // 不接收参数的deleter的特化
-template <void (*del)()> struct SDLPtrFactory<del> {
+template <void (*del)()> struct FPDelterFactory<del> {
     static auto gen() {
         // 一个随机选择的void类型非null指针
         // 仅作为std::unique_ptr持有的占位符使用
