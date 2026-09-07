@@ -100,13 +100,17 @@ auto main(int argc, char **argv) -> int {
                     WinPos = showWinInMousePos(win.get());
                     isWindowShow = true;
                     break;
-                case Event::WIN_HIDE:
+                case Event::WIN_SUBMIT:
                     SDL_HideWindow(win.get());
 
                     if (isWindowShow && activeGrid) {
                         setPointWindowPos(activeGrid);
                     }
 
+                    isWindowShow = false;
+                    break;
+                case Event::WIN_CANCLE:
+                    SDL_HideWindow(win.get());
                     isWindowShow = false;
                     break;
                 default:

@@ -62,8 +62,7 @@ void configGridWith(GridItem *const item, yyjson_val *const configItem) {
     item->col = genColor();
 }
 
-// TODO: 目前这个函数在文件不存在时不会做任何处理，记得修。
-auto loadConfig(const std::filesystem::path &path) -> GridList {
+auto loadConfig(const std::string_view path) -> GridList {
     GridList list{};
 
     if (!std::filesystem::exists(path)) {

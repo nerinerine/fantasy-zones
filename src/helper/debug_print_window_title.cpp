@@ -1,4 +1,4 @@
-#include"print_window_title.hpp"
+#include"debug_print_window_title.hpp"
 
 #include <array>
 #include <fmt/format.h>

@@ -3,7 +3,8 @@
 
 enum class Event : uint8_t {
     WIN_DISPLAY,
-    WIN_HIDE,
+    WIN_SUBMIT,
+    WIN_CANCLE,
     THREAD_PAUSE,
     THREAD_RUN,
 };

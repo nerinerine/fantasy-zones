@@ -32,4 +32,4 @@ struct GridItem {
 
 using GridList = std::vector<GridItem>;
 
-auto loadConfig(const std::filesystem::path &path) -> GridList;
+auto loadConfig(const std::string_view path) -> GridList;

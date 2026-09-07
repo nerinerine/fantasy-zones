@@ -27,8 +27,10 @@ class Config {
 
 void submitWindowEvent() noexcept {
     const auto config = Config::instance();
-    if (!config->isWindowMoving || !config->isAltkeyPushing) {
-        config->queue->Push(Event::WIN_HIDE);
+    if (!config->isWindowMoving) {
+        config->queue->Push(Event::WIN_SUBMIT);
+    } else if (!config->isAltkeyPushing) {
+        config->queue->Push(Event::WIN_CANCLE);
     } else {
         config->queue->Push(Event::WIN_DISPLAY);
     }
