@@ -5,17 +5,6 @@
 
 #include <etl/queue_spsc_atomic.h>
 
-class EventQuit {
-  public:
-    static auto shouldQuit() noexcept -> bool & {
-        static bool flag{ false };
-        return flag;
-    }
-    void operator()() noexcept {
-        shouldQuit() = true;
-    }
-};
-
 class EventPause {
   public:
     EventPause() : pLatch(nullptr, cleanUp) {
@@ -52,17 +41,14 @@ class EventPause {
     std::unique_ptr<std::latch, void (*)(std::latch *)> pLatch;
 };
 
-using Event = std::variant<EventPause, EventQuit>;
+class EventQuit {};
+class EventDisplay {};
+class EventSubmit {};
+class EventCancel {};
+class EventDebug {};
 
-struct EventQueue {
-    void process() noexcept {
-        while (!queue.empty()) {
-            auto &e = queue.front();
-            std::visit([](auto &e) -> void { e(); }, e);
-            queue.pop();
-        }
-    }
+using Event =
+    std::variant<EventQuit, EventPause, EventDisplay, EventSubmit, EventCancel,EventDebug>;
 
-    static constexpr size_t EVENT_QUEUE_MAX_SIZE = 64;
-    etl::queue_spsc_atomic<Event, EVENT_QUEUE_MAX_SIZE> queue;
-};
+static constexpr size_t EVENT_QUEUE_MAX_SIZE = 64;
+using EventQueue = etl::queue_spsc_atomic<Event, EVENT_QUEUE_MAX_SIZE>;

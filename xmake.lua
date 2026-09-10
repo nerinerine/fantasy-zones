@@ -6,6 +6,11 @@ add_requires("yyjson")
 add_requires("etl")
 
 target("fantasy_zones")
+
+    if is_mode("debug") then
+        add_defines("DEBUG")
+    end
+
     set_languages("c++latest")
     set_kind("binary")
     set_toolchains("clang")

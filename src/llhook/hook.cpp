@@ -1,59 +1,118 @@
 #include "hook.hpp"
 
+#include <SDL3/SDL.h>
 #include <thread>
 #include <fmt/base.h>
 
 #include "../define.hpp"
+#include "../helper/make_unique_with.hpp"
 
 #include <Windows.h>
 
-class Config {
+class KeyRecord {
   public:
-    HHOOK kbHook{};
-    HWINEVENTHOOK winMoveHook{};
-    LLHook::EventQueue *queue = nullptr;
+    KeyRecord(const KeyRecord &) = delete;
+    KeyRecord(KeyRecord &&) = delete;
+    auto operator=(const KeyRecord &) = delete;
+    auto operator=(KeyRecord &&) = delete;
+
+    [[nodiscard]] static auto i() noexcept -> KeyRecord & {
+        static KeyRecord inst{};
+        return inst;
+    }
+
     bool isWindowMoving = false;
     bool isAltkeyPushing = false;
-    bool init = false;
 
-    [[nodiscard]] static auto instance() noexcept -> Config * {
-        static Config config{};
-        return &config;
+  private:
+    KeyRecord() = default;
+    ~KeyRecord() = default;
+};
+
+class Hooks {
+  public:
+    Hooks(const Hooks &) = delete;
+    Hooks(Hooks &&) = delete;
+    auto operator=(const Hooks &) = delete;
+    auto operator=(Hooks &&) = delete;
+
+    HHOOK kbHook{};
+    HWINEVENTHOOK winMoveHook{};
+
+    [[nodiscard]] static auto i() noexcept -> Hooks & {
+        static Hooks inst{};
+        return inst;
     }
 
   private:
-    Config() = default;
+    Hooks() = default;
+    ~Hooks() = default;
+};
+
+class Context {
+  public:
+    Context(const Context &) = delete;
+    Context(Context &&) = delete;
+    auto operator=(const Context &) = delete;
+    auto operator=(Context &&) = delete;
+
+    EventQueue *queue = nullptr;
+    std::latch *pauseToken = nullptr;
+
+    [[nodiscard]] static auto i() noexcept -> Context & {
+        static Context inst{};
+        return inst;
+    }
+
+  private:
+    Context() = default;
+    ~Context() = default;
 };
 
 void submitWindowEvent() noexcept {
-    const auto config = Config::instance();
-    if (!config->isWindowMoving) {
-        config->queue->Push(Event::WIN_SUBMIT);
-    } else if (!config->isAltkeyPushing) {
-        config->queue->Push(Event::WIN_CANCLE);
-    } else {
-        config->queue->Push(Event::WIN_DISPLAY);
-    }
+    static auto &ctx = Context::i();
+    static const auto queue = ctx.queue;
+    static const auto &kb = KeyRecord::i();
+
+    if (kb.isWindowMoving && kb.isAltkeyPushing && ctx.pauseToken) {
+        // 满足激活条件，且处在暂停状态
+        ctx.pauseToken->count_down();
+        ctx.pauseToken = nullptr;
+        queue->emplace(EventDisplay{});
+    } else if (!ctx.pauseToken && !kb.isWindowMoving) {
+        // 处在激活状态时停止移动窗口
+        EventPause pause{};
+        ctx.pauseToken = pause.token();
+        queue->emplace(EventSubmit{});
+        queue->emplace(std::move(pause));
+    } else if (!ctx.pauseToken && !kb.isAltkeyPushing) {
+        // 处在激活状态时松开alt
+        EventPause pause{};
+        ctx.pauseToken = pause.token();
+        queue->emplace(EventCancel{});
+        queue->emplace(std::move(pause));
+    } //else 什么都不做
 }
 
-auto CALLBACK altCheckCallback(int nCode, WPARAM wParam, LPARAM lParam)
+auto CALLBACK keyboardLLEventProc(int nCode, WPARAM wParam, LPARAM lParam)
     -> LRESULT {
-    const auto queue = Config::instance()->queue;
+    static auto &kb = KeyRecord::i();
     if (nCode == HC_ACTION) {
-        auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
+        const auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
         if (pKeyBoard->vkCode == VK_LMENU) [[unlikely]] {
             if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
-                Config::instance()->isAltkeyPushing = true;
+                kb.isAltkeyPushing = true;
             }
             if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
-                Config::instance()->isAltkeyPushing = false;
+                kb.isAltkeyPushing = false;
             }
             submitWindowEvent();
         }
     }
 
-    return CallNextHookEx(Config::instance()->kbHook, nCode, wParam, lParam);
+    return CallNextHookEx(Hooks::i().kbHook, nCode, wParam, lParam);
 }
+
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 // win32api底层逻辑这一块...哦对了,
 void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
@@ -64,55 +123,102 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
                            DWORD idEventThread,
                            DWORD dwmsEventTime) {
     // NOLINTEND(bugprone-easily-swappable-parameters)
+    static auto &kb = KeyRecord::i();
     if (event == EVENT_SYSTEM_MOVESIZESTART) {
-        Config::instance()->isWindowMoving = true;
+        kb.isWindowMoving = true;
     }
     if (event == EVENT_SYSTEM_MOVESIZEEND) {
-        Config::instance()->isWindowMoving = false;
+        kb.isWindowMoving = false;
     }
     submitWindowEvent();
 }
 
-auto LLHook::init(LLHook::EventQueue *queue) -> bool {
-    auto config = Config::instance();
-
-    if (config->init) [[unlikely]] {
-        return true;
+void destory() noexcept;
+// 我们应当假设init函数在所有函数之前被调用且仅调用一次
+auto init(EventQueue *const queue) -> bool {
+    static bool isInit = false;
+    if (isInit) {
+        return false;
     }
 
-    config->kbHook = SetWindowsHookEx(WH_KEYBOARD_LL,   //hook 目标
-                                      altCheckCallback, // 回调
-                                      nullptr,          //意义不明的参数
-                                      0                 //0表示全局hook
+    auto &ctx = Context::i();
+    auto &hooks = Hooks::i();
+
+    hooks.kbHook = SetWindowsHookEx(WH_KEYBOARD_LL,      //hook 目标
+                                    keyboardLLEventProc, // 回调
+                                    nullptr,             //意义不明的参数
+                                    0                    //0表示全局hook
     );
 
-    if (!config->kbHook) [[unlikely]] {
-        fmt::println("set hook error{}", GetLastError());
+    if (!hooks.kbHook) [[unlikely]] {
+        fmt::println(stderr, "set hook error: {}", GetLastError());
         return false;
     }
 
-    config->winMoveHook = SetWinEventHook(EVENT_SYSTEM_MOVESIZESTART,
-                                          EVENT_SYSTEM_MOVESIZEEND,
-                                          nullptr,
-                                          winEventProc,
-                                          0,
-                                          0,
-                                          WINEVENT_OUTOFCONTEXT |
-                                              WINEVENT_SKIPOWNPROCESS);
+    hooks.winMoveHook = SetWinEventHook(EVENT_SYSTEM_MOVESIZESTART,
+                                        EVENT_SYSTEM_MOVESIZEEND,
+                                        nullptr,
+                                        winEventProc,
+                                        0,
+                                        0,
+                                        WINEVENT_OUTOFCONTEXT |
+                                            WINEVENT_SKIPOWNPROCESS);
 
-    if (!config->winMoveHook) [[unlikely]] {
-        fmt::println("set win event hook error{}", GetLastError());
+    if (!hooks.winMoveHook) [[unlikely]] {
+        fmt::println(stderr, "set win event hook error: {}", GetLastError());
         return false;
     }
 
-    config->queue = queue;
+    ctx.queue = queue;
 
-    config->init = true;
+    EventPause pause{};
+    ctx.pauseToken = pause.token();
+    queue->emplace(std::move(pause));
+
+    // 这里暂时没法正常的设置tray icon
+    // init tray icon
+
+    // auto tray = MakeUniqueWith<SDL_DestroyTray>(
+    //     SDL_CreateTray(nullptr, "fantacyZone"));
+
+    // if (!tray) {
+    //     fmt::println(stderr, "sdl create tray error:{}", SDL_GetError());
+    //     return -1;
+    // }
+
+    // auto menu = SDL_CreateTrayMenu(tray.get());
+    // auto quitEntry =
+    //     SDL_InsertTrayEntryAt(menu, -1, "quit", SDL_TRAYENTRY_BUTTON);
+    // SDL_SetTrayEntryCallback(
+    //     quitEntry,
+    //     [](void *userdata, SDL_TrayEntry *entry) -> void { destory(); },
+    //     nullptr);
+
+    isInit = true;
+
     return true;
 }
 
+void destory() noexcept {
+    static bool isDestory = false;
+    if (isDestory) {
+        return;
+    }
+
+    auto &ctx = Context::i();
+    auto &hooks = Hooks::i();
+    UnhookWindowsHookEx(hooks.kbHook);
+    UnhookWinEvent(hooks.winMoveHook);
+
+    if (ctx.pauseToken) {
+        ctx.pauseToken->count_down();
+        ctx.queue->emplace(EventQuit{});
+    }
+}
+
 // NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
-void LLHook::run(std::stop_token token) noexcept {
+void LLHook::run(std::stop_token token, EventQueue *const queue) noexcept {
+    init(queue);
     MSG msg;
     while (!token.stop_requested()) [[unlikely]] {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) [[unlikely]] {
@@ -128,11 +234,5 @@ void LLHook::run(std::stop_token token) noexcept {
             std::this_thread::sleep_for(SLEEP_DURATION);
         }
     }
-}
-
-void LLHook::destory() noexcept {
-    auto config = Config::instance();
-    UnhookWindowsHookEx(config->kbHook);
-    UnhookWinEvent(config->winMoveHook);
-    config->init = false;
+    destory();
 }
