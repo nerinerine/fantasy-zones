@@ -18,24 +18,21 @@
 
 struct EventHandle {
     SDL_Window *win;
-    const GridItem *activeGrid;
-    bool shouldQuit;
+    const GridItem *activeGrid = nullptr;
+    bool shouldQuit = false;
+    SDL_Point winPos{};
 
     void operator()(auto &e) {
-        fmt::println("[debug] event pause and other");
         e();
-        fmt::println("[debug] event pause and other finish");
     }
     void operator()(EventQuit &) {
-        fmt::println("[debug] event quit");
         shouldQuit = true;
     }
     void operator()(EventDisplay &) {
-        fmt::println("[debug] event display");
         showWinInMousePos(win);
+        SDL_GetWindowPosition(win, &winPos.x, &winPos.y);
     }
     void operator()(EventSubmit &) {
-        fmt::println("[debug] event submit");
         SDL_HideWindow(win);
 
         if (activeGrid) {
@@ -43,11 +40,7 @@ struct EventHandle {
         }
     }
     void operator()(EventCancel &) {
-        fmt::println("[debug] event cancel");
         SDL_HideWindow(win);
-    }
-    void operator()(EventDebug &) {
-        fmt::println("[debug] event debug");
     }
 };
 
@@ -83,10 +76,6 @@ auto main(int argc, char **argv) -> int {
 
     SDL_SetWindowAlwaysOnTop(win.get(), true);
 
-    EventHandle eventHandle{ .win = win.get(),
-                             .activeGrid = nullptr,
-                             .shouldQuit = false };
-
     // start event loop for hook
     EventQueue queue{};
     auto hookThread = std::jthread(LLHook::run, &queue);
@@ -107,7 +96,8 @@ auto main(int argc, char **argv) -> int {
 
     // main loop
     SDL_Event event{};
-    SDL_Point WinPos{};
+
+    EventHandle eventHandle{ .win = win.get() };
 
     while (!eventHandle.shouldQuit) [[likely]] {
         // 来自hook线程的事件
@@ -126,8 +116,8 @@ auto main(int argc, char **argv) -> int {
         }
 
         const SDL_FPoint mouse_relPos{
-            .x = static_cast<float>(getMousePos().x - WinPos.x),
-            .y = static_cast<float>(getMousePos().y - WinPos.y)
+            .x = static_cast<float>(getMousePos().x - eventHandle.winPos.x),
+            .y = static_cast<float>(getMousePos().y - eventHandle.winPos.y)
         };
 
         eventHandle.activeGrid = nullptr;
@@ -145,7 +135,6 @@ auto main(int argc, char **argv) -> int {
         }
 
         if (eventHandle.activeGrid) {
-            fmt::println("[debug] draw active");
             const DRect &activeRect = eventHandle.activeGrid->targetRect;
             const SDL_Color col{ .r = 0x00, .g = 0xff, .b = 0xcc, .a = 0xff };
             activeRect.drawBorder(col, rdr.get());

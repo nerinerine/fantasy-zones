@@ -45,10 +45,9 @@ class EventQuit {};
 class EventDisplay {};
 class EventSubmit {};
 class EventCancel {};
-class EventDebug {};
 
 using Event =
-    std::variant<EventQuit, EventPause, EventDisplay, EventSubmit, EventCancel,EventDebug>;
+    std::variant<EventQuit, EventPause, EventDisplay, EventSubmit, EventCancel>;
 
 static constexpr size_t EVENT_QUEUE_MAX_SIZE = 64;
 using EventQueue = etl::queue_spsc_atomic<Event, EVENT_QUEUE_MAX_SIZE>;
