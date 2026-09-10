@@ -11,6 +11,10 @@ target("fantasy_zones")
         add_defines("DEBUG")
     end
 
+    if is_mode("release") then
+        add_ldflags("-Wl,--subsystem","-Wl,--entry:mainCRTStartup")
+    end
+
     set_languages("c++latest")
     set_kind("binary")
     set_toolchains("clang")

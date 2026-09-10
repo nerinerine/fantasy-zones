@@ -1,7 +1,3 @@
-#ifndef DEBUG
-#pragma comment(linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"")
-#endif
-
 #include <thread>
 
 #include <fmt/base.h>
