@@ -2,6 +2,7 @@
 
 #include <array>
 #include <ranges>
+#include <filesystem>
 #include <cstdint>
 
 #include <yyjson.h>
