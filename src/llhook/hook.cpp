@@ -175,35 +175,12 @@ auto init(EventQueue *const queue) -> bool {
     ctx.pauseToken = pause.token();
     queue->emplace(std::move(pause));
 
-    // 这里暂时没法正常的设置tray icon
-    // init tray icon
-
-    // auto tray = MakeUniqueWith<SDL_DestroyTray>(
-    //     SDL_CreateTray(nullptr, "fantacyZone"));
-
-    // if (!tray) {
-    //     fmt::println(stderr, "sdl create tray error:{}", SDL_GetError());
-    //     return -1;
-    // }
-
-    // auto menu = SDL_CreateTrayMenu(tray.get());
-    // auto quitEntry =
-    //     SDL_InsertTrayEntryAt(menu, -1, "quit", SDL_TRAYENTRY_BUTTON);
-    // SDL_SetTrayEntryCallback(
-    //     quitEntry,
-    //     [](void *userdata, SDL_TrayEntry *entry) -> void { destory(); },
-    //     nullptr);
-
     isInit = true;
 
     return true;
 }
 
 void destory() noexcept {
-    static bool isDestory = false;
-    if (isDestory) {
-        return;
-    }
 
     auto &ctx = Context::i();
     auto &hooks = Hooks::i();

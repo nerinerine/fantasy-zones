@@ -1,44 +1,13 @@
 #include <thread>
+#include <clocale>
 
 #include <fmt/base.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_tray.h>
 
-#include "define.hpp"
-#include "helper/make_unique_with.hpp"
-#include "desktop_info/info.hpp"
-#include "helper/showWinInMousePos.hpp"
-#include "grid/grid.hpp"
+#include "gui/gui.hpp"
 #include "llhook/hook.hpp"
-#include "helper/set_point_window_pos.hpp"
-
-struct EventHandle {
-    SDL_Window *win;
-    const GridItem *activeGrid = nullptr;
-    bool shouldQuit = false;
-    SDL_Point winPos{};
-
-    void operator()(auto &e) {
-        e();
-    }
-    void operator()(EventQuit &) {
-        shouldQuit = true;
-    }
-    void operator()(EventDisplay &) {
-        showWinInMousePos(win);
-        SDL_GetWindowPosition(win, &winPos.x, &winPos.y);
-    }
-    void operator()(EventSubmit &) {
-        SDL_HideWindow(win);
-
-        if (activeGrid) {
-            setPointWindowPos(activeGrid);
-        }
-    }
-    void operator()(EventCancel &) {
-        SDL_HideWindow(win);
-    }
-};
+#include "helper/make_unique_with.hpp"
 
 auto main(int argc, char **argv) -> int {
     std::setlocale(LC_ALL,
@@ -56,98 +25,38 @@ auto main(int argc, char **argv) -> int {
 
     const auto SDLModelHandle = MakeUniqueWith<SDL_Quit>();
 
-    // create window
-    const auto windowSize = getWindowSize(getScreenSize());
-
-    const auto win = MakeUniqueWith<SDL_DestroyWindow>(
-        SDL_CreateWindow("Fantacy Zone",
-                         windowSize.w,
-                         windowSize.h,
-                         SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
-
-    if (!win) [[unlikely]] {
-        fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
-        return -1;
-    }
-
-    SDL_SetWindowAlwaysOnTop(win.get(), true);
-
-    // start event loop for hook
     EventQueue queue{};
+    // start event loop for hook
     auto hookThread = std::jthread(LLHook::run, &queue);
 
-    // create render
-    const auto rdr = MakeUniqueWith<SDL_DestroyRenderer>(
-        SDL_CreateRenderer(win.get(), nullptr));
+    // init tray icon
 
-    if (!rdr) [[unlikely]] {
-        fmt::println(stderr, "sdl create render error:{}", SDL_GetError());
-        return -1;
-    }
+    // auto tray = MakeUniqueWith<SDL_DestroyTray>(
+    //     SDL_CreateTray(nullptr, "fantacyZone"));
 
-    SDL_SetRenderDrawBlendMode(rdr.get(), SDL_BLENDMODE_BLEND);
+    // if (!tray) {
+    //     fmt::println(stderr, "sdl create tray error:{}", SDL_GetError());
+    //     return -1;
+    // }
 
-    // load config
-    const auto config = loadConfig("./setting.json");
+    // auto menu = SDL_CreateTrayMenu(tray.get());
+    // auto quitEntry =
+    //     SDL_InsertTrayEntryAt(menu, -1, "quit", SDL_TRAYENTRY_BUTTON);
 
-    // main loop
-    SDL_Event event{};
+    // auto trayData = std::make_tuple(&queue, &hookThread);
+    // using TrayData_t = decltype(trayData);
 
-    EventHandle eventHandle{ .win = win.get() };
+    // SDL_SetTrayEntryCallback(
+    //     quitEntry,
+    //     [](void *userdata, SDL_TrayEntry *entry) -> void {
+    //         const auto trayData = static_cast<TrayData_t *>(userdata);
+    //         auto [queue, hookThread] = *trayData;
+    //         hookThread->request_stop();
+    //     },
+    //     &trayData);
 
-    while (!eventHandle.shouldQuit) [[likely]] {
-        // 来自hook线程的事件
-
-        while (!queue.empty()) {
-            auto &e = queue.front();
-            std::visit(eventHandle, e);
-            queue.pop();
-        }
-
-        // SDL自身的事件
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EventType::SDL_EVENT_QUIT) [[unlikely]] {
-                eventHandle.shouldQuit = true;
-            }
-        }
-
-        const SDL_FPoint mouse_relPos{
-            .x = static_cast<float>(getMousePos().x - eventHandle.winPos.x),
-            .y = static_cast<float>(getMousePos().y - eventHandle.winPos.y)
-        };
-
-        eventHandle.activeGrid = nullptr;
-        for (const auto &grid : config) {
-            if (grid.visible) [[unlikely]] {
-                grid.hitRect.drawBorder(grid.col, rdr.get());
-                grid.hitRect.drawInner(grid.col, rdr.get());
-            }
-
-            const auto checkRect = grid.hitRect.outerDisplayRect();
-            if (!eventHandle.activeGrid &&
-                SDL_PointInRectFloat(&mouse_relPos, &checkRect)) [[unlikely]] {
-                eventHandle.activeGrid = &grid;
-            }
-        }
-
-        if (eventHandle.activeGrid) {
-            const DRect &activeRect = eventHandle.activeGrid->targetRect;
-            const SDL_Color col{ .r = 0x00, .g = 0xff, .b = 0xcc, .a = 0xff };
-            activeRect.drawBorder(col, rdr.get());
-            activeRect.drawShadow(col, rdr.get());
-        }
-
-        SDL_RenderPresent(rdr.get());
-
-        SDL_SetRenderDrawColor(rdr.get(),
-                               CLEAR_COLOR.r,
-                               CLEAR_COLOR.g,
-                               CLEAR_COLOR.b,
-                               CLEAR_COLOR.a);
-        SDL_RenderClear(rdr.get());
-
-        std::this_thread::sleep_for(SLEEP_DURATION);
-    }
+    // start event loop for gui
+    auto guiThread = std::jthread(runGUi, &queue);
 
     return 0;
 }
