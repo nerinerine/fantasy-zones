@@ -5,6 +5,4 @@
 
 #include "../helper/event.hpp"
 
-struct LLHook {
-    static void run(std::stop_token token, EventQueue *const queue) noexcept;
-};
+void llHookRun(std::stop_token token, EventQueue *const queue) noexcept;

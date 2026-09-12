@@ -11,14 +11,18 @@
 template <auto del> struct FPDelterFactory;
 // 一个生成函数的简写
 template <auto del> const auto MakeUniqueWith = FPDelterFactory<del>::gen;
+// 获取工厂函数的最终类型
+template <auto del> using FPDelter_t = FPDelterFactory<del>::RetType;
 
 // 正常deleter的特化
 template <class T, void (*del)(T *)> struct FPDelterFactory<del> {
     //      ^^^ 萃取的目标类  ^^^deleter函数的指针
 
+    using RetType = std::unique_ptr<T, void (*)(T *)>;
+
     // 使用gen函数调用
     static auto gen(T *ptr) {
-        return std::unique_ptr<T, void (*)(T *)>(ptr, del);
+        return RetType(ptr, del);
     }
 
     // 实例化后直接作为函数调用
@@ -29,7 +33,24 @@ template <class T, void (*del)(T *)> struct FPDelterFactory<del> {
     }
 };
 
-// 不接收参数的deleter的特化
+// 不获取所有权的管理非指针对象
+template <class T, void (*del)(T &)> struct FPDelterFactory<del> {
+    using RetType = std::unique_ptr<T, void (*)(T *)>;
+
+    static void wrapper(T *pt) {
+        del(*pt);
+    }
+
+    static auto gen(T &res) {
+        return RetType(&res, wrapper);
+    }
+
+    static auto operator()(T &ptr) {
+        return gen(ptr);
+    }
+};
+
+// 不接收参数的deleter的特化，可以作为一个申必的defer使用
 template <void (*del)()> struct FPDelterFactory<del> {
     static auto gen() {
         // 一个随机选择的void类型非null指针
@@ -46,3 +67,21 @@ template <void (*del)()> struct FPDelterFactory<del> {
         return gen();
     }
 };
+
+// 将lambda快捷的转换为函数指针
+template <class T> constexpr auto toFP(auto f) -> void (*)(T) {
+    return static_cast<void (*)(T)>(f);
+}
+
+constexpr auto toFP(auto f) -> void (*)() {
+    return static_cast<void (*)()>(f);
+}
+
+#ifdef USE_MACRO
+
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+//  这是最终手段,仅应当在无法正常推导类型时使用
+#define MAKE_UNIQUE_FOR(type) std::unique_ptr<type, void (*)(type *)>
+// NOLINTEND(cppcoreguidelines-macro-usage)
+
+#endif // USE_MACRO

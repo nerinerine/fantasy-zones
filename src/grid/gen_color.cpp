@@ -5,6 +5,7 @@
 constexpr double HUE_OFFSET = 21;
 constexpr double SAT = 0.4;
 constexpr double VAL = 1;
+constexpr double A_ROUND = 360;
 
 struct HSVColor {
     double h{};
@@ -56,5 +57,8 @@ auto genColor() noexcept -> SDL_Color {
     static double hue = 0;
     const auto col = mapHSV({ .h = hue, .s = SAT, .v = VAL });
     hue += HUE_OFFSET;
+    if (hue > A_ROUND) [[unlikely]] {
+        hue -= A_ROUND;
+    }
     return col;
 }

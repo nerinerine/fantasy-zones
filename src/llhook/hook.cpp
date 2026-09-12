@@ -1,94 +1,72 @@
 #include "hook.hpp"
 
 #include <SDL3/SDL.h>
-#include <thread>
 #include <fmt/base.h>
+#include <etl/singleton.h>
 
-#include "../define.hpp"
+#define USE_MACRO
 #include "../helper/make_unique_with.hpp"
+#undef USE_MACRO
 
 #include <Windows.h>
 
-class KeyRecord {
-  public:
-    KeyRecord(const KeyRecord &) = delete;
-    KeyRecord(KeyRecord &&) = delete;
-    auto operator=(const KeyRecord &) = delete;
-    auto operator=(KeyRecord &&) = delete;
+// 几个仅应当作为单例模式创建的类
+// 一般来说其实不推荐在多线程环境下使用单例模式
+// 但是一方面来说，这几个类仅在单个线程内的少量函数中使用
+// 另一方面来说，微软的win32api的callback
+// 既不能使用lambda透传大法，也不提供userdata指针
+// 单例甚至已经是其中最优雅的方案了
+// 总之微软你会一直顺(
 
-    [[nodiscard]] static auto i() noexcept -> KeyRecord & {
-        static KeyRecord inst{};
-        return inst;
-    }
+// anywway，因为这几个单例在创建之后就不再被销毁/移动
+// 所以各个函数也只需使用static变量获取一次引用即可
 
+void pauseTokenDeleter(std::latch *pauseToken) {
+    // 在pauseToken被丢弃之前先确保其已经不再阻塞线程
+    pauseToken->count_down();
+}
+
+struct UserState {
     bool isWindowMoving = false;
     bool isAltkeyPushing = false;
-
-  private:
-    KeyRecord() = default;
-    ~KeyRecord() = default;
 };
 
-class Hooks {
+struct Hooks {
   public:
-    Hooks(const Hooks &) = delete;
-    Hooks(Hooks &&) = delete;
-    auto operator=(const Hooks &) = delete;
-    auto operator=(Hooks &&) = delete;
-
     HHOOK kbHook{};
     HWINEVENTHOOK winMoveHook{};
-
-    [[nodiscard]] static auto i() noexcept -> Hooks & {
-        static Hooks inst{};
-        return inst;
-    }
-
-  private:
-    Hooks() = default;
-    ~Hooks() = default;
 };
 
-class Context {
-  public:
-    Context(const Context &) = delete;
-    Context(Context &&) = delete;
-    auto operator=(const Context &) = delete;
-    auto operator=(Context &&) = delete;
-
+// n. 协调员
+// 元宝起的名，还是考研英语单词
+// AI在起名的时候总是会自以为是的“优化”一下
+// 然后拉出惨不忍睹的依托(笑)
+struct Coordinator {
     EventQueue *queue = nullptr;
-    std::latch *pauseToken = nullptr;
-
-    [[nodiscard]] static auto i() noexcept -> Context & {
-        static Context inst{};
-        return inst;
-    }
-
-  private:
-    Context() = default;
-    ~Context() = default;
+    FPDelter_t<pauseTokenDeleter> pauseToken =
+        MakeUniqueWith<pauseTokenDeleter>(nullptr);
 };
 
 void submitWindowEvent() noexcept {
-    static auto &ctx = Context::i();
+    static auto &ctx = etl::singleton<Coordinator>::instance();
     static const auto queue = ctx.queue;
-    static const auto &kb = KeyRecord::i();
+    static const auto &kb = etl::singleton<UserState>::instance();
 
-    if (kb.isWindowMoving && kb.isAltkeyPushing && ctx.pauseToken) {
+    if (kb.isWindowMoving && kb.isAltkeyPushing && ctx.pauseToken)
+        [[unlikely]] {
         // 满足激活条件，且处在暂停状态
-        ctx.pauseToken->count_down();
-        ctx.pauseToken = nullptr;
+        ctx.pauseToken.reset();
         queue->emplace(EventDisplay{});
-    } else if (!ctx.pauseToken && !kb.isWindowMoving) {
+    } else if (!ctx.pauseToken && !kb.isWindowMoving) [[unlikely]] {
         // 处在激活状态时停止移动窗口
         EventPause pause{};
-        ctx.pauseToken = pause.token();
+        ctx.pauseToken.reset(pause.token());
         queue->emplace(EventSubmit{});
         queue->emplace(std::move(pause));
-    } else if (!ctx.pauseToken && !kb.isAltkeyPushing) {
+    } else if (!ctx.pauseToken && !kb.isAltkeyPushing) [[unlikely]] {
         // 处在激活状态时松开alt
         EventPause pause{};
-        ctx.pauseToken = pause.token();
+        ctx.pauseToken.reset(pause.token());
         queue->emplace(EventCancel{});
         queue->emplace(std::move(pause));
     } //else 什么都不做
@@ -96,7 +74,7 @@ void submitWindowEvent() noexcept {
 
 auto CALLBACK keyboardLLEventProc(int nCode, WPARAM wParam, LPARAM lParam)
     -> LRESULT {
-    static auto &kb = KeyRecord::i();
+    static auto &kb = etl::singleton<UserState>::instance();
     if (nCode == HC_ACTION) {
         const auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
         if (pKeyBoard->vkCode == VK_LMENU) [[unlikely]] {
@@ -110,7 +88,10 @@ auto CALLBACK keyboardLLEventProc(int nCode, WPARAM wParam, LPARAM lParam)
         }
     }
 
-    return CallNextHookEx(Hooks::i().kbHook, nCode, wParam, lParam);
+    return CallNextHookEx(etl::singleton<Hooks>::instance().kbHook,
+                          nCode,
+                          wParam,
+                          lParam);
 }
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
@@ -123,7 +104,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
                            DWORD idEventThread,
                            DWORD dwmsEventTime) {
     // NOLINTEND(bugprone-easily-swappable-parameters)
-    static auto &kb = KeyRecord::i();
+    static auto &kb = etl::singleton<UserState>::instance();
     if (event == EVENT_SYSTEM_MOVESIZESTART) {
         kb.isWindowMoving = true;
     }
@@ -133,83 +114,103 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
     submitWindowEvent();
 }
 
-void destory() noexcept;
-// 我们应当假设init函数在所有函数之前被调用且仅调用一次
-auto init(EventQueue *const queue) -> bool {
-    static bool isInit = false;
-    if (isInit) {
-        return false;
+// NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
+void llHookRun(std::stop_token token, EventQueue *const queue) noexcept {
+    MSG msg;
+    // 下面这段把win event接入stop_callback的操作是d指导的灵感
+    // 其实一开始我的想法是把这个线程用win32api创建
+    // 这样可以直接在这个线程的事件队列里拉屎
+    // 但是d指导的方案显然更有美感
+    // 大抵是从哪里摘抄的前人作品吧(目移)
+
+    // 提前PeekMessage一次创建消息队列
+    PeekMessage(&msg, nullptr, 0, 0, PM_NOREMOVE);
+    // 创建一个可以被wait的handle
+    HANDLE hStop = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+
+    if (!hStop) {
+        fmt::println(stderr, "create win32 event error: {}", GetLastError());
+        return;
     }
 
-    auto &ctx = Context::i();
-    auto &hooks = Hooks::i();
+    auto hStopHandle = MakeUniqueWith<toFP<HANDLE &>(
+        [](HANDLE &hStop) -> void { CloseHandle(hStop); })>(hStop);
 
-    hooks.kbHook = SetWindowsHookEx(WH_KEYBOARD_LL,      //hook 目标
-                                    keyboardLLEventProc, // 回调
-                                    nullptr,             //意义不明的参数
-                                    0                    //0表示全局hook
-    );
+    // 当这个线程被stop_request时发送事件
+    // 这里的回调是由主线程执行的，所以也就不用担心阻塞
+    std::stop_callback cb(token, [hStop] -> void { SetEvent(hStop); });
 
-    if (!hooks.kbHook) [[unlikely]] {
+    MAKE_UNIQUE_FOR(HHOOK__)
+    kbHook{ SetWindowsHookEx(WH_KEYBOARD_LL,      //hook 目标
+                             keyboardLLEventProc, // 回调
+                             nullptr,             //意义不明的参数
+                             0                    //0表示全局hook
+                             ),
+            [](HHOOK hook) noexcept -> void { UnhookWindowsHookEx(hook); } };
+
+    if (!kbHook) [[unlikely]] {
         fmt::println(stderr, "set hook error: {}", GetLastError());
-        return false;
+        return;
     }
 
-    hooks.winMoveHook = SetWinEventHook(EVENT_SYSTEM_MOVESIZESTART,
-                                        EVENT_SYSTEM_MOVESIZEEND,
-                                        nullptr,
-                                        winEventProc,
-                                        0,
-                                        0,
-                                        WINEVENT_OUTOFCONTEXT |
-                                            WINEVENT_SKIPOWNPROCESS);
+    MAKE_UNIQUE_FOR(HWINEVENTHOOK__)
+    winMoveHook{ SetWinEventHook(EVENT_SYSTEM_MOVESIZESTART,
+                                 EVENT_SYSTEM_MOVESIZEEND,
+                                 nullptr,
+                                 winEventProc,
+                                 0,
+                                 0,
+                                 WINEVENT_OUTOFCONTEXT |
+                                     WINEVENT_SKIPOWNPROCESS),
+                 [](HWINEVENTHOOK hook) noexcept -> void {} };
 
-    if (!hooks.winMoveHook) [[unlikely]] {
-        fmt::println(stderr, "set win event hook error: {}", GetLastError());
-        return false;
+    if (!winMoveHook) [[unlikely]] {
+        fmt::println(stderr, "set hook error: {}", GetLastError());
+        return;
     }
 
-    ctx.queue = queue;
+    etl::singleton<Hooks>::create(
+        Hooks{ .kbHook = kbHook.get(), .winMoveHook = winMoveHook.get() });
 
+    // 先暂停渲染线程，因为这个线程已开始一定是hide的
     EventPause pause{};
-    ctx.pauseToken = pause.token();
     queue->emplace(std::move(pause));
 
-    isInit = true;
+    etl::singleton<Coordinator>::create(Coordinator{
+        .queue = queue,
+        .pauseToken = MakeUniqueWith<pauseTokenDeleter>(pause.token()) });
 
-    return true;
-}
+    etl::singleton<UserState>::create();
 
-void destory() noexcept {
+    // while (!token.stop_requested()) [[unlikely]] {
+    // 上面设置了回调，这里就不用反复检测token了
+    while (true) {
+        // 第一个入参是需要等待的handle的列表长度，第二个则是列表的本体（handle*）
+        // 和包括win32api在内的大部分c api完全相反的使用习惯，有点神了
+        const auto ret =
+            MsgWaitForMultipleObjects(1, &hStop, FALSE, INFINITE, QS_ALLINPUT);
 
-    auto &ctx = Context::i();
-    auto &hooks = Hooks::i();
-    UnhookWindowsHookEx(hooks.kbHook);
-    UnhookWinEvent(hooks.winMoveHook);
+        // WAIT_OBJECT_0指列表中第一个需要等待的对象
+        // 这里传入了一个handle那自然是没问题了
+        // 你以为第二个是WAIT_OBJECT_1?
+        // 没想到吧其实是WAIT_OBJECT_0 + 1
+        // ...有点变态了
+        if (ret == WAIT_OBJECT_0) [[unlikely]] {
+            break; // 收到停止请求
+        }
 
-    if (ctx.pauseToken) {
-        ctx.pauseToken->count_down();
-        ctx.queue->emplace(EventQuit{});
-    }
-}
+        if (ret == WAIT_OBJECT_0 + 1) [[likely]] {
+            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) [[unlikely]] {
+                // 其实这个检测应该没什么用，但是D指导这么写了...(目移)
+                if (msg.message == WM_QUIT)
+                    break;
 
-// NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
-void LLHook::run(std::stop_token token, EventQueue *const queue) noexcept {
-    init(queue);
-    MSG msg;
-    while (!token.stop_requested()) [[unlikely]] {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) [[unlikely]] {
-            // 其实这个检测应该没什么用，但是D指导这么写了...(目移)
-            if (msg.message == WM_QUIT)
-                break;
-
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        } else {
-            // 暂且借用一下渲染模块那边的sleep duration
-            // 不过感觉其实不是很需要再改就是了
-            std::this_thread::sleep_for(SLEEP_DURATION);
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
         }
     }
-    destory();
+
+    // 顺手把渲染线程退出了
+    queue->emplace(EventQuit{});
 }

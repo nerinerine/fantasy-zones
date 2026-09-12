@@ -27,7 +27,7 @@ auto main(int argc, char **argv) -> int {
 
     EventQueue queue{};
     // start event loop for hook
-    auto hookThread = std::jthread(LLHook::run, &queue);
+    auto hookThread = std::jthread(llHookRun, &queue);
 
     // init tray icon
 
