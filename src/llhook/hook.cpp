@@ -45,35 +45,40 @@ struct Coordinator {
     EventQueue *queue = nullptr;
     FPDelter_t<pauseTokenDeleter> pauseToken =
         MakeUniqueWith<pauseTokenDeleter>(nullptr);
+
+    SDL_Event displayEvent;
+    SDL_Event hideEvent;
 };
 
 void submitWindowEvent() noexcept {
-    static auto &ctx = etl::singleton<Coordinator>::instance();
-    static const auto queue = ctx.queue;
+    static auto &coord = etl::singleton<Coordinator>::instance();
+    static const auto queue = coord.queue;
     static const auto &kb = etl::singleton<UserState>::instance();
 
-    if (kb.isWindowMoving && kb.isAltkeyPushing && ctx.pauseToken)
+    if (kb.isWindowMoving && kb.isAltkeyPushing && coord.pauseToken)
         [[unlikely]] {
         // 满足激活条件，且处在暂停状态
-        ctx.pauseToken.reset();
-        queue->emplace(EventDisplay{});
-    } else if (!ctx.pauseToken && !kb.isWindowMoving) [[unlikely]] {
+        coord.pauseToken.reset();
+        SDL_PushEvent(&coord.displayEvent);
+    } else if (!coord.pauseToken && !kb.isWindowMoving) [[unlikely]] {
         // 处在激活状态时停止移动窗口
+        SDL_PushEvent(&coord.hideEvent);
         EventPause pause{};
-        ctx.pauseToken.reset(pause.token());
+        coord.pauseToken.reset(pause.token());
         queue->emplace(EventSubmit{});
         queue->emplace(std::move(pause));
-    } else if (!ctx.pauseToken && !kb.isAltkeyPushing) [[unlikely]] {
+    } else if (!coord.pauseToken && !kb.isAltkeyPushing) [[unlikely]] {
         // 处在激活状态时松开alt
+        SDL_PushEvent(&coord.hideEvent);
         EventPause pause{};
-        ctx.pauseToken.reset(pause.token());
-        queue->emplace(EventCancel{});
+        coord.pauseToken.reset(pause.token());
         queue->emplace(std::move(pause));
     } //else 什么都不做
 }
 
-auto CALLBACK keyboardLLEventProc(int nCode, WPARAM wParam, LPARAM lParam)
-    -> LRESULT {
+auto CALLBACK keyboardLLEventProc(int nCode,
+                                  WPARAM wParam,
+                                  LPARAM lParam) noexcept -> LRESULT {
     static auto &kb = etl::singleton<UserState>::instance();
     if (nCode == HC_ACTION) {
         const auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
@@ -102,7 +107,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
                            LONG idObject,
                            LONG idChild,
                            DWORD idEventThread,
-                           DWORD dwmsEventTime) {
+                           DWORD dwmsEventTime) noexcept {
     // NOLINTEND(bugprone-easily-swappable-parameters)
     static auto &kb = etl::singleton<UserState>::instance();
     if (event == EVENT_SYSTEM_MOVESIZESTART) {
@@ -115,7 +120,8 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
 }
 
 // NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
-void llHookRun(std::stop_token token, EventQueue *const queue) noexcept {
+void llHookRun(std::stop_token token, HookContext ctx) noexcept {
+    const auto queue = ctx.queue;
     MSG msg;
     // 下面这段把win event接入stop_callback的操作是d指导的灵感
     // 其实一开始我的想法是把这个线程用win32api创建
@@ -138,7 +144,7 @@ void llHookRun(std::stop_token token, EventQueue *const queue) noexcept {
 
     // 当这个线程被stop_request时发送事件
     // 这里的回调是由主线程执行的，所以也就不用担心阻塞
-    std::stop_callback cb(token, [hStop] -> void { SetEvent(hStop); });
+    std::stop_callback cb(token, [hStop] noexcept -> void { SetEvent(hStop); });
 
     MAKE_UNIQUE_FOR(HHOOK__)
     kbHook{ SetWindowsHookEx(WH_KEYBOARD_LL,      //hook 目标
@@ -178,9 +184,16 @@ void llHookRun(std::stop_token token, EventQueue *const queue) noexcept {
 
     etl::singleton<Coordinator>::create(Coordinator{
         .queue = queue,
-        .pauseToken = MakeUniqueWith<pauseTokenDeleter>(pause.token()) });
+        .pauseToken = MakeUniqueWith<pauseTokenDeleter>(pause.token()),
+        .displayEvent = { .type = ctx.displayEvent },
+        .hideEvent = { .type = ctx.hideEvent } });
 
     etl::singleton<UserState>::create();
+
+    // 在退出时顺手把渲染线程退出了
+    auto queueDefer = MakeUniqueWith<toFP([]() noexcept -> void {
+        etl::singleton<Coordinator>::instance().queue->emplace(EventQuit{});
+    })>();
 
     // while (!token.stop_requested()) [[unlikely]] {
     // 上面设置了回调，这里就不用反复检测token了
@@ -210,7 +223,4 @@ void llHookRun(std::stop_token token, EventQueue *const queue) noexcept {
             }
         }
     }
-
-    // 顺手把渲染线程退出了
-    queue->emplace(EventQuit{});
 }

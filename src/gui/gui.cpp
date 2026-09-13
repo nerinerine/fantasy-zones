@@ -7,11 +7,9 @@
 #include "../grid/grid.hpp"
 #include "../helper/make_unique_with.hpp"
 #include "../helper/set_point_window_pos.hpp"
-#include "../helper/showWinInMousePos.hpp"
 #include "../desktop_info/info.hpp"
 
 struct EventHandle {
-    SDL_Window *win = nullptr;
     const GridItem *activeGrid = nullptr;
     bool shouldQuit = false;
     SDL_Point winPos{};
@@ -22,43 +20,19 @@ struct EventHandle {
     void operator()(EventQuit &) {
         shouldQuit = true;
     }
-    void operator()(EventDisplay &) {
-        showWinInMousePos(win);
-        SDL_GetWindowPosition(win, &winPos.x, &winPos.y);
-    }
     void operator()(EventSubmit &) {
-        SDL_HideWindow(win);
-
         if (activeGrid) {
             setPointWindowPos(activeGrid);
         }
     }
-    void operator()(EventCancel &) {
-        SDL_HideWindow(win);
-    }
 };
 
-auto runGUi(EventQueue *const queue)->int {
-
-    // create window
-    const auto windowSize = getWindowSize(getScreenSize());
-
-    const auto win = MakeUniqueWith<SDL_DestroyWindow>(
-        SDL_CreateWindow("Fantacy Zone",
-                         windowSize.w,
-                         windowSize.h,
-                         SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
-
-    if (!win) [[unlikely]] {
-        fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
-        return -1;
-    }
-
-    SDL_SetWindowAlwaysOnTop(win.get(), true);
+auto runGui(const GuiContext ctx) -> int {
+    const auto queue = ctx.queue;
 
     // create render
     const auto rdr = MakeUniqueWith<SDL_DestroyRenderer>(
-        SDL_CreateRenderer(win.get(), nullptr));
+        SDL_CreateRenderer(ctx.window, nullptr));
 
     if (!rdr) [[unlikely]] {
         fmt::println(stderr, "sdl create render error:{}", SDL_GetError());
@@ -71,24 +45,16 @@ auto runGUi(EventQueue *const queue)->int {
     const auto config = loadConfig("./setting.json");
 
     // main loop
-    SDL_Event event{};
 
-    EventHandle eventHandle{ .win = win.get() };
+    EventHandle eventHandle{};
 
-        while (!eventHandle.shouldQuit) [[likely]] {
+    while (!eventHandle.shouldQuit) [[likely]] {
         // 来自hook线程的事件
 
         while (!queue->empty()) {
             auto &e = queue->front();
             std::visit(eventHandle, e);
             queue->pop();
-        }
-
-        // SDL自身的事件
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EventType::SDL_EVENT_QUIT) [[unlikely]] {
-                eventHandle.shouldQuit = true;
-            }
         }
 
         const SDL_FPoint mouse_relPos{
