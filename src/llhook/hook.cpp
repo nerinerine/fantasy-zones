@@ -7,6 +7,7 @@
 #define USE_MACRO
 #include "../helper/make_unique_with.hpp"
 #undef USE_MACRO
+#include "../helper/events.hpp"
 
 #include <Windows.h>
 
@@ -21,11 +22,6 @@
 // anywway，因为这几个单例在创建之后就不再被销毁/移动
 // 所以各个函数也只需使用static变量获取一次引用即可
 
-void pauseTokenDeleter(std::latch *pauseToken) {
-    // 在pauseToken被丢弃之前先确保其已经不再阻塞线程
-    pauseToken->count_down();
-}
-
 struct UserState {
     bool isWindowMoving = false;
     bool isAltkeyPushing = false;
@@ -37,42 +33,23 @@ struct Hooks {
     HWINEVENTHOOK winMoveHook{};
 };
 
-// n. 协调员
-// 元宝起的名，还是考研英语单词
-// AI在起名的时候总是会自以为是的“优化”一下
-// 然后拉出惨不忍睹的依托(笑)
-struct Coordinator {
-    EventQueue *queue = nullptr;
-    FPDelter_t<pauseTokenDeleter> pauseToken =
-        MakeUniqueWith<pauseTokenDeleter>(nullptr);
-
-    SDL_Event displayEvent;
-    SDL_Event hideEvent;
-};
-
 void submitWindowEvent() noexcept {
-    static auto &coord = etl::singleton<Coordinator>::instance();
-    static const auto queue = coord.queue;
+    static bool isActive = false;
     static const auto &kb = etl::singleton<UserState>::instance();
+    static auto &events = etl::singleton<Events>::instance();
 
-    if (kb.isWindowMoving && kb.isAltkeyPushing && coord.pauseToken)
-        [[unlikely]] {
+    if (kb.isWindowMoving && kb.isAltkeyPushing) [[unlikely]] {
         // 满足激活条件，且处在暂停状态
-        coord.pauseToken.reset();
-        SDL_PushEvent(&coord.displayEvent);
-    } else if (!coord.pauseToken && !kb.isWindowMoving) [[unlikely]] {
+        SDL_PushEvent(&events.displayEvent);
+        isActive = true;
+    } else if (isActive && !kb.isWindowMoving) [[unlikely]] {
         // 处在激活状态时停止移动窗口
-        SDL_PushEvent(&coord.hideEvent);
-        EventPause pause{};
-        coord.pauseToken.reset(pause.token());
-        queue->emplace(EventSubmit{});
-        queue->emplace(std::move(pause));
-    } else if (!coord.pauseToken && !kb.isAltkeyPushing) [[unlikely]] {
+        SDL_PushEvent(&events.submitEvent);
+        isActive = false;
+    } else if (isActive && !kb.isAltkeyPushing) [[unlikely]] {
         // 处在激活状态时松开alt
-        SDL_PushEvent(&coord.hideEvent);
-        EventPause pause{};
-        coord.pauseToken.reset(pause.token());
-        queue->emplace(std::move(pause));
+        SDL_PushEvent(&events.cancelEvent);
+        isActive = false;
     } //else 什么都不做
 }
 
@@ -120,8 +97,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
 }
 
 // NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
-void llHookRun(std::stop_token token, HookContext ctx) noexcept {
-    const auto queue = ctx.queue;
+void llHookRun(std::stop_token token) noexcept {
     MSG msg;
     // 下面这段把win event接入stop_callback的操作是d指导的灵感
     // 其实一开始我的想法是把这个线程用win32api创建
@@ -178,22 +154,7 @@ void llHookRun(std::stop_token token, HookContext ctx) noexcept {
     etl::singleton<Hooks>::create(
         Hooks{ .kbHook = kbHook.get(), .winMoveHook = winMoveHook.get() });
 
-    // 先暂停渲染线程，因为这个线程已开始一定是hide的
-    EventPause pause{};
-    queue->emplace(std::move(pause));
-
-    etl::singleton<Coordinator>::create(Coordinator{
-        .queue = queue,
-        .pauseToken = MakeUniqueWith<pauseTokenDeleter>(pause.token()),
-        .displayEvent = { .type = ctx.displayEvent },
-        .hideEvent = { .type = ctx.hideEvent } });
-
     etl::singleton<UserState>::create();
-
-    // 在退出时顺手把渲染线程退出了
-    auto queueDefer = MakeUniqueWith<toFP([]() noexcept -> void {
-        etl::singleton<Coordinator>::instance().queue->emplace(EventQuit{});
-    })>();
 
     // while (!token.stop_requested()) [[unlikely]] {
     // 上面设置了回调，这里就不用反复检测token了

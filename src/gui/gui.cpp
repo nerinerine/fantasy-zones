@@ -1,99 +1,85 @@
 #include "gui.hpp"
 
-#include <SDL3/SDL.h>
 #include <thread>
+
+#include <fmt/format.h>
+#include <SDL3/SDL.h>
+#include <etl/singleton.h>
 
 #include "../define.hpp"
 #include "../grid/grid.hpp"
-#include "../helper/make_unique_with.hpp"
-#include "../helper/set_point_window_pos.hpp"
 #include "../desktop_info/info.hpp"
 
-struct EventHandle {
-    const GridItem *activeGrid = nullptr;
-    bool shouldQuit = false;
-    SDL_Point winPos{};
+#include "../helper/events.hpp"
+#include "../helper/set_point_window_pos.hpp"
+#include "../helper/show_win_in_mouse_pos.hpp"
 
-    void operator()(auto &e) {
-        e();
-    }
-    void operator()(EventQuit &) {
-        shouldQuit = true;
-    }
-    void operator()(EventSubmit &) {
-        if (activeGrid) {
-            setPointWindowPos(activeGrid);
-        }
-    }
-};
+constexpr auto getEvents = etl::singleton<Events>::instance;
 
-auto runGui(const GuiContext ctx) -> int {
-    const auto queue = ctx.queue;
+void runGui(const GuiContext ctx) {
+    static const auto config = loadConfig("./setting.json");
+    const GridItem *activeGrid{};
 
-    // create render
-    const auto rdr = MakeUniqueWith<SDL_DestroyRenderer>(
-        SDL_CreateRenderer(ctx.window, nullptr));
-
-    if (!rdr) [[unlikely]] {
-        fmt::println(stderr, "sdl create render error:{}", SDL_GetError());
-        return -1;
-    }
-
-    SDL_SetRenderDrawBlendMode(rdr.get(), SDL_BLENDMODE_BLEND);
-
-    // load config
-    const auto config = loadConfig("./setting.json");
+    SDL_Event event{};
+    SDL_Point winPos = showWinInMousePos(ctx.win);
 
     // main loop
-
-    EventHandle eventHandle{};
-
-    while (!eventHandle.shouldQuit) [[likely]] {
-        // 来自hook线程的事件
-
-        while (!queue->empty()) {
-            auto &e = queue->front();
-            std::visit(eventHandle, e);
-            queue->pop();
+    while (true) {
+        // 接管sdl事件循环
+        while (SDL_PollEvent(&event)) [[unlikely]] {
+            if (event.type == getEvents().submitEvent.type) {
+                SDL_HideWindow(ctx.win);
+                if (activeGrid) {
+                    setPointWindowPos(activeGrid);
+                }
+                return;
+            } else if (event.type == getEvents().cancelEvent.type) {
+                SDL_HideWindow(ctx.win);
+                return;
+            } else if (event.type == SDL_EventType::SDL_EVENT_QUIT)
+                [[unlikely]] {
+                // 在退出之前把消耗的quit重新推回队列
+                SDL_Event quit{ .type = SDL_EventType::SDL_EVENT_QUIT };
+                SDL_PushEvent(&quit);
+                return;
+            }
         }
 
         const SDL_FPoint mouse_relPos{
-            .x = static_cast<float>(getMousePos().x - eventHandle.winPos.x),
-            .y = static_cast<float>(getMousePos().y - eventHandle.winPos.y)
+            .x = static_cast<float>(getMousePos().x - winPos.x),
+            .y = static_cast<float>(getMousePos().y - winPos.y)
         };
 
-        eventHandle.activeGrid = nullptr;
+        activeGrid = nullptr;
         for (const auto &grid : config) {
-            if (grid.visible) [[unlikely]] {
-                grid.hitRect.drawBorder(grid.col, rdr.get());
-                grid.hitRect.drawInner(grid.col, rdr.get());
+            if (grid.visible) {
+                grid.hitRect.drawBorder(grid.col, ctx.rdr);
+                grid.hitRect.drawInner(grid.col, ctx.rdr);
             }
 
             const auto checkRect = grid.hitRect.outerDisplayRect();
-            if (!eventHandle.activeGrid &&
-                SDL_PointInRectFloat(&mouse_relPos, &checkRect)) [[unlikely]] {
-                eventHandle.activeGrid = &grid;
+            if (!activeGrid && SDL_PointInRectFloat(&mouse_relPos, &checkRect))
+                [[unlikely]] {
+                activeGrid = &grid;
             }
         }
 
-        if (eventHandle.activeGrid) {
-            const DRect &activeRect = eventHandle.activeGrid->targetRect;
+        if (activeGrid) {
+            const DRect &activeRect = activeGrid->targetRect;
             const SDL_Color col{ .r = 0x00, .g = 0xff, .b = 0xcc, .a = 0xff };
-            activeRect.drawBorder(col, rdr.get());
-            activeRect.drawShadow(col, rdr.get());
+            activeRect.drawBorder(col, ctx.rdr);
+            activeRect.drawShadow(col, ctx.rdr);
         }
 
-        SDL_RenderPresent(rdr.get());
+        SDL_RenderPresent(ctx.rdr);
 
-        SDL_SetRenderDrawColor(rdr.get(),
+        SDL_SetRenderDrawColor(ctx.rdr,
                                CLEAR_COLOR.r,
                                CLEAR_COLOR.g,
                                CLEAR_COLOR.b,
                                CLEAR_COLOR.a);
-        SDL_RenderClear(rdr.get());
+        SDL_RenderClear(ctx.rdr);
 
         std::this_thread::sleep_for(SLEEP_DURATION);
     }
-
-    return 0;
 }

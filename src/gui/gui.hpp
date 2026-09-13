@@ -1,10 +1,9 @@
 #pragma once
 #include <SDL3/SDL.h>
-#include "../helper/event.hpp"
 
 struct GuiContext {
-    EventQueue *queue;
-    SDL_Window *window;
+    SDL_Renderer *rdr;
+    SDL_Window *win;
 };
 
-auto runGui(const GuiContext ctx) -> int;
+void runGui(const GuiContext ctx);

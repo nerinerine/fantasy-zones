@@ -4,11 +4,16 @@
 #include <fmt/base.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_tray.h>
+#include <etl/singleton.h>
 
 #include "gui/gui.hpp"
 #include "llhook/hook.hpp"
 #include "desktop_info/info.hpp"
+
+#include "helper/events.hpp"
 #include "helper/make_unique_with.hpp"
+
+constexpr auto getEvents = etl::singleton<Events>::instance;
 
 auto main(int argc, char **argv) -> int {
     std::setlocale(LC_ALL,
@@ -23,8 +28,9 @@ auto main(int argc, char **argv) -> int {
     const auto SDLModelHandle = MakeUniqueWith<SDL_Quit>();
 
     // create window
-    const auto windowSize = getWindowSize(getScreenSize());
+    SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
 
+    const auto windowSize = getWindowSize(getScreenSize());
     const auto win = MakeUniqueWith<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
                          windowSize.w,
@@ -38,19 +44,30 @@ auto main(int argc, char **argv) -> int {
 
     SDL_SetWindowAlwaysOnTop(win.get(), true);
 
-    EventQueue queue{};
-    // start message pump for hook
-    const auto displayEvent = SDL_RegisterEvents(2);
-    const auto hideEvent = displayEvent + 1;
-    auto hookThread = std::jthread(llHookRun,
-                                   HookContext{ .queue = &queue,
-                                                .displayEvent = displayEvent,
-                                                .hideEvent = hideEvent });
+    // register custom event
+    const auto RegistedEvents = SDL_RegisterEvents(3);
+    if (!RegistedEvents) {
+        fmt::println(stderr, "sdl register events error:{}", SDL_GetError());
+        return -1;
+    }
+    etl::singleton<Events>::create(
+        Events{ .displayEvent = { RegistedEvents },
+                .submitEvent = { .type = RegistedEvents + 1 },
+                .cancelEvent = { .type = RegistedEvents + 2 } });
 
-    // start render loop
-    auto guiThread = std::jthread(runGui,
-                                  GuiContext{ .queue = &queue,
-                                              .window = win.get() });
+    // start message pump for hook
+    auto hookThread = std::jthread(llHookRun);
+
+    // create render
+    const auto rdr = MakeUniqueWith<SDL_DestroyRenderer>(
+        SDL_CreateRenderer(win.get(), nullptr));
+
+    if (!rdr) [[unlikely]] {
+        fmt::println(stderr, "sdl create render error:{}", SDL_GetError());
+        return -1;
+    }
+
+    SDL_SetRenderDrawBlendMode(rdr.get(), SDL_BLENDMODE_BLEND);
 
     // init tray icon
     auto tray = MakeUniqueWith<SDL_DestroyTray>(
@@ -61,31 +78,31 @@ auto main(int argc, char **argv) -> int {
         return -1;
     }
 
-    auto menu = SDL_CreateTrayMenu(tray.get());
-    auto quitEntry =
+    const auto menu = SDL_CreateTrayMenu(tray.get());
+    const auto quitEntry =
         SDL_InsertTrayEntryAt(menu, -1, "quit", SDL_TRAYENTRY_BUTTON);
 
     SDL_SetTrayEntryCallback(
         quitEntry,
         [](void *userdata, SDL_TrayEntry *entry) -> void {
+            const auto hookThread = static_cast<std::jthread *>(userdata);
+            hookThread->request_stop();
             SDL_Event quitEvent{ .type = SDL_EventType::SDL_EVENT_QUIT };
             SDL_PushEvent(&quitEvent);
         },
-        nullptr);
+        &hookThread);
 
     // start event loop
     SDL_Event event{};
+    const GuiContext guiCtx{ .rdr = rdr.get(), .win = win.get() };
     while (true) {
         SDL_WaitEvent(&event);
 
         if (event.type == SDL_EventType::SDL_EVENT_QUIT) [[unlikely]] {
             break;
-        } else if (event.type == displayEvent) {
-            SDL_ShowWindow(win.get());
-        } else if (event.type == hideEvent) {
-            SDL_HideWindow(win.get());
+        } else if (event.type == getEvents().displayEvent.type) {
+            runGui(guiCtx);
         }
     }
-
     return 0;
 }

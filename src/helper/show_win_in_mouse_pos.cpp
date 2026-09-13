@@ -1,4 +1,4 @@
-#include "showWinInMousePos.hpp"
+#include "show_win_in_mouse_pos.hpp"
 #include "../desktop_info/info.hpp"
 
 auto showWinInMousePos(SDL_Window *win) noexcept -> SDL_Point {
