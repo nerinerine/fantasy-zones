@@ -1,4 +1,4 @@
 #pragma once
 #include <SDL3/SDL.h>
 
-auto showWinInMousePos(SDL_Window *win) noexcept -> SDL_Point;
+auto showWinInMousePos(SDL_Window *win) -> SDL_Point;

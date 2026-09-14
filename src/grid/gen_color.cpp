@@ -13,7 +13,7 @@ struct HSVColor {
     double v{};
 };
 
-auto mapHSV(const HSVColor &color) noexcept -> SDL_Color {
+auto mapHSV(const HSVColor &color) -> SDL_Color {
     const auto [h, s, v] = color;
 
     assert(0 <= h && h < 360);
@@ -53,7 +53,7 @@ auto mapHSV(const HSVColor &color) noexcept -> SDL_Color {
     return { .r = r, .g = g, .b = b, .a = 1 };
 }
 
-auto genColor() noexcept -> SDL_Color {
+auto genColor() -> SDL_Color {
     static double hue = 0;
     const auto col = mapHSV({ .h = hue, .s = SAT, .v = VAL });
     hue += HUE_OFFSET;

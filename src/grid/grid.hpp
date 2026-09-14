@@ -12,11 +12,11 @@ struct DRect {
     double w{};
     double h{};
     // 计算内部矩形
-    [[nodiscard]] auto innerDisplayRect() const noexcept -> SDL_FRect;
+    [[nodiscard]] auto innerDisplayRect() const -> SDL_FRect;
     // 计算外部矩形
-    [[nodiscard]] auto outerDisplayRect() const noexcept -> SDL_FRect;
+    [[nodiscard]] auto outerDisplayRect() const -> SDL_FRect;
     // 计算窗口实际将要移到的矩形
-    [[nodiscard]] auto realRect() const noexcept -> SDL_Rect;
+    [[nodiscard]] auto realRect() const -> SDL_Rect;
     void drawBorder(const SDL_Color col, SDL_Renderer *rdr) const;
     void drawInner(const SDL_Color col, SDL_Renderer *rdr) const;
     void drawShadow(const SDL_Color col, SDL_Renderer *rdr) const;

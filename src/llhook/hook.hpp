@@ -2,4 +2,4 @@
 
 #include <stop_token>
 
-void llHookRun(std::stop_token token) noexcept;
+void llHookRun(std::stop_token token);

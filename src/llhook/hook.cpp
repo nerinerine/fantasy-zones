@@ -33,7 +33,7 @@ struct Hooks {
     HWINEVENTHOOK winMoveHook{};
 };
 
-void submitWindowEvent() noexcept {
+void submitWindowEvent() {
     static bool isActive = false;
     static const auto &kb = etl::singleton<UserState>::instance();
     static auto &events = etl::singleton<Events>::instance();
@@ -55,7 +55,7 @@ void submitWindowEvent() noexcept {
 
 auto CALLBACK keyboardLLEventProc(int nCode,
                                   WPARAM wParam,
-                                  LPARAM lParam) noexcept -> LRESULT {
+                                  LPARAM lParam) -> LRESULT {
     static auto &kb = etl::singleton<UserState>::instance();
     if (nCode == HC_ACTION) {
         const auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
@@ -84,7 +84,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
                            LONG idObject,
                            LONG idChild,
                            DWORD idEventThread,
-                           DWORD dwmsEventTime) noexcept {
+                           DWORD dwmsEventTime) {
     // NOLINTEND(bugprone-easily-swappable-parameters)
     static auto &kb = etl::singleton<UserState>::instance();
     if (event == EVENT_SYSTEM_MOVESIZESTART) {
@@ -97,7 +97,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
 }
 
 // NOLINTNEXTLINE(performance-unnecessary-value-param) 有什么话和标准库说去吧
-void llHookRun(std::stop_token token) noexcept {
+void llHookRun(std::stop_token token) {
     MSG msg;
     // 下面这段把win event接入stop_callback的操作是d指导的灵感
     // 其实一开始我的想法是把这个线程用win32api创建
@@ -120,7 +120,7 @@ void llHookRun(std::stop_token token) noexcept {
 
     // 当这个线程被stop_request时发送事件
     // 这里的回调是由主线程执行的，所以也就不用担心阻塞
-    std::stop_callback cb(token, [hStop] noexcept -> void { SetEvent(hStop); });
+    std::stop_callback cb(token, [hStop] -> void { SetEvent(hStop); });
 
     MAKE_UNIQUE_FOR(HHOOK__)
     kbHook{ SetWindowsHookEx(WH_KEYBOARD_LL,      //hook 目标
@@ -128,7 +128,7 @@ void llHookRun(std::stop_token token) noexcept {
                              nullptr,             //意义不明的参数
                              0                    //0表示全局hook
                              ),
-            [](HHOOK hook) noexcept -> void { UnhookWindowsHookEx(hook); } };
+            [](HHOOK hook) -> void { UnhookWindowsHookEx(hook); } };
 
     if (!kbHook) [[unlikely]] {
         fmt::println(stderr, "set hook error: {}", GetLastError());
@@ -144,7 +144,7 @@ void llHookRun(std::stop_token token) noexcept {
                                  0,
                                  WINEVENT_OUTOFCONTEXT |
                                      WINEVENT_SKIPOWNPROCESS),
-                 [](HWINEVENTHOOK hook) noexcept -> void {} };
+                 [](HWINEVENTHOOK hook) -> void {} };
 
     if (!winMoveHook) [[unlikely]] {
         fmt::println(stderr, "set hook error: {}", GetLastError());

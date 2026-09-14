@@ -1,7 +1,7 @@
 #include "show_win_in_mouse_pos.hpp"
 #include "../desktop_info/info.hpp"
 
-auto showWinInMousePos(SDL_Window *win) noexcept -> SDL_Point {
+auto showWinInMousePos(SDL_Window *win) -> SDL_Point {
     const auto pos = getMousePos();
     const auto size = getScreenSize();
     const auto relPos = pos / size;

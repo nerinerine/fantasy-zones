@@ -97,7 +97,7 @@ auto loadConfig(const std::string_view path) -> GridList {
     return list;
 }
 
-[[nodiscard]] auto DRect::innerDisplayRect() const noexcept -> SDL_FRect {
+[[nodiscard]] auto DRect::innerDisplayRect() const -> SDL_FRect {
     const auto size = getWindowSize(getScreenSize());
 
     const auto _innerW = static_cast<float>(size.w * w - BORDER * 2);
@@ -114,7 +114,7 @@ auto loadConfig(const std::string_view path) -> GridList {
     };
 }
 
-[[nodiscard]] auto DRect::outerDisplayRect() const noexcept -> SDL_FRect {
+[[nodiscard]] auto DRect::outerDisplayRect() const -> SDL_FRect {
     const auto size = getWindowSize(getScreenSize());
     return {
         .x = static_cast<float>(size.w * x),
@@ -124,7 +124,7 @@ auto loadConfig(const std::string_view path) -> GridList {
     };
 }
 
-[[nodiscard]] auto DRect::realRect() const noexcept -> SDL_Rect {
+[[nodiscard]] auto DRect::realRect() const -> SDL_Rect {
     const auto size = getScreenSize();
     return {
         .x = static_cast<int>(size.w * x),
