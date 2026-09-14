@@ -14,6 +14,7 @@
 #include "../helper/make_unique_with.hpp"
 
 constexpr uint8_t BORDER_ALPHA = UINT8_MAX;
+constexpr uint8_t PRE_RESERVE_SIZE = 64;
 double DRect::shadowOffset{};
 
 void configDRectWith(DRect *const rect, yyjson_val *configItem) {
@@ -65,9 +66,11 @@ void configGridWith(GridItem *const item, yyjson_val *const configItem) {
 
 auto loadConfig(const std::string_view path) -> GridList {
     GridList list{};
+    list.reserve(PRE_RESERVE_SIZE);
 
     if (!std::filesystem::exists(path)) {
         fmt::println(stderr, "config not exist");
+        return list;
     }
 
     yyjson_read_err err{};
@@ -94,6 +97,7 @@ auto loadConfig(const std::string_view path) -> GridList {
         configGridWith(std::to_address(list.end() - 1), configItem);
     }
 
+    list.shrink_to_fit();
     return list;
 }
 

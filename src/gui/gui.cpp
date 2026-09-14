@@ -30,7 +30,6 @@ constexpr struct {
 constexpr auto getEvents = etl::singleton<Events>::instance;
 
 void runGui(const GuiContext ctx) {
-    static const auto config = loadConfig("./setting.json");
     const GridItem *activeGrid{};
 
     SDL_Event event{};
@@ -64,7 +63,7 @@ void runGui(const GuiContext ctx) {
         };
 
         activeGrid = nullptr;
-        for (const auto &grid : config) {
+        for (const auto &grid : *ctx.list) {
             if (grid.visible) {
                 grid.hitRect.drawBorder(grid.col, ctx.rdr);
                 grid.hitRect.drawInner(grid.col, ctx.rdr);

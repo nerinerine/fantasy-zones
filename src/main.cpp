@@ -6,6 +6,7 @@
 #include <SDL3/SDL_tray.h>
 #include <etl/singleton.h>
 
+#include "grid/grid.hpp"
 #include "gui/gui.hpp"
 #include "llhook/hook.hpp"
 #include "desktop_info/info.hpp"
@@ -13,13 +14,14 @@
 #include "helper/events.hpp"
 #include "helper/make_unique_with.hpp"
 
-#include <Windows.h>
+#include <windows.h>
+#include <Psapi.h>
 
 constexpr auto getEvents = etl::singleton<Events>::instance;
 
 // NOLINTNEXTLINE:fuck u micorsoft
-    auto main(int argc, char **argv) -> int {
-// int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow){
+auto main(int argc, char **argv) -> int {
+    // int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow){
     std::setlocale(LC_ALL,
                    ""); //使用用户环境默认locale以使fmt可以正常打印宽字符串
 
@@ -73,6 +75,9 @@ constexpr auto getEvents = etl::singleton<Events>::instance;
 
     SDL_SetRenderDrawBlendMode(rdr.get(), SDL_BLENDMODE_BLEND);
 
+    // load config
+    const auto config = loadConfig("./setting.json");
+
     // init tray icon
     auto tray = MakeUniqueWith<SDL_DestroyTray>(
         SDL_CreateTray(nullptr, "fantacyZone"));
@@ -98,7 +103,9 @@ constexpr auto getEvents = etl::singleton<Events>::instance;
 
     // start event loop
     SDL_Event event{};
-    const GuiContext guiCtx{ .rdr = rdr.get(), .win = win.get() };
+    const GuiContext guiCtx{ .rdr = rdr.get(),
+                             .win = win.get(),
+                             .list = &config };
     while (true) {
         SDL_WaitEvent(&event);
 
@@ -106,6 +113,7 @@ constexpr auto getEvents = etl::singleton<Events>::instance;
             break;
         } else if (event.type == getEvents().displayEvent.type) {
             runGui(guiCtx);
+            EmptyWorkingSet(GetCurrentProcess());
         }
     }
     return 0;
