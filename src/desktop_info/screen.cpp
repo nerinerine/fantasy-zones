@@ -1,6 +1,8 @@
 #include <Windows.h>
 #include "info.hpp"
-#include "../define.hpp"
+
+constexpr auto WINDOW_WIDTH_SCALE = 0.25;
+constexpr auto WINDOW_HEIGHT_SCALE = 0.25;
 
 auto getScreenSize() -> Rect {
     // static const auto w{ GetSystemMetrics(SM_CXSCREEN) };

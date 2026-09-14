@@ -13,9 +13,13 @@
 #include "helper/events.hpp"
 #include "helper/make_unique_with.hpp"
 
+#include <Windows.h>
+
 constexpr auto getEvents = etl::singleton<Events>::instance;
 
-auto main(int argc, char **argv) -> int {
+// NOLINTNEXTLINE:fuck u micorsoft
+    auto main(int argc, char **argv) -> int {
+// int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow){
     std::setlocale(LC_ALL,
                    ""); //使用用户环境默认locale以使fmt可以正常打印宽字符串
 

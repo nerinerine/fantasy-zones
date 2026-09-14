@@ -6,13 +6,26 @@
 #include <SDL3/SDL.h>
 #include <etl/singleton.h>
 
-#include "../define.hpp"
 #include "../grid/grid.hpp"
 #include "../desktop_info/info.hpp"
 
 #include "../helper/events.hpp"
 #include "../helper/set_point_window_pos.hpp"
 #include "../helper/show_win_in_mouse_pos.hpp"
+
+#include <chrono>
+#include <cstdint>
+using namespace std::literals;
+
+constexpr char FPS{ 30 };
+constexpr auto SLEEP_DURATION{ 1000ms / FPS };
+
+constexpr struct {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+} CLEAR_COLOR{ .r = 0xff, .g = 0xff, .b = 0xff, .a = 0xff };
 
 constexpr auto getEvents = etl::singleton<Events>::instance;
 

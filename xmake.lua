@@ -1,7 +1,6 @@
 add_rules("mode.debug", "mode.release")
 add_requires("libsdl3")
 add_requires("fmt")
-add_requires("lockfree")
 add_requires("yyjson")
 add_requires("etl")
 
@@ -9,10 +8,9 @@ target("fantasy_zones")
 
     if is_mode("debug") then
         add_defines("DEBUG")
-    end
-
-    if is_mode("release") then
-        add_ldflags("-Wl,--subsystem","-Wl,--entry:mainCRTStartup")
+    else
+        add_rules("win.sdk.application")
+        add_ldflags("-Wl,-entry:mainCRTStartup")
     end
 
     set_languages("c++latest")
@@ -21,7 +19,6 @@ target("fantasy_zones")
 
     add_packages("libsdl3")
     add_packages("fmt")
-    add_packages("lockfree")
     add_packages("yyjson")
     add_packages("etl")
 
