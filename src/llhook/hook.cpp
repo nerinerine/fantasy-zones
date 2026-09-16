@@ -53,11 +53,10 @@ void submitWindowEvent() {
     } //else 什么都不做
 }
 
-auto CALLBACK keyboardLLEventProc(int nCode,
-                                  WPARAM wParam,
-                                  LPARAM lParam) -> LRESULT {
+auto CALLBACK keyboardLLEventProc(int nCode, WPARAM wParam, LPARAM lParam)
+    -> LRESULT {
     static auto &kb = etl::singleton<UserState>::instance();
-    if (nCode == HC_ACTION) {
+    if (nCode == HC_ACTION) [[unlikely]] {
         const auto pKeyBoard = std::bit_cast<KBDLLHOOKSTRUCT *>(lParam);
         if (pKeyBoard->vkCode == VK_LMENU) [[unlikely]] {
             if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
@@ -89,8 +88,7 @@ void CALLBACK winEventProc(HWINEVENTHOOK hWinEventHook,
     static auto &kb = etl::singleton<UserState>::instance();
     if (event == EVENT_SYSTEM_MOVESIZESTART) {
         kb.isWindowMoving = true;
-    }
-    if (event == EVENT_SYSTEM_MOVESIZEEND) {
+    } else if (event == EVENT_SYSTEM_MOVESIZEEND) {
         kb.isWindowMoving = false;
     }
     submitWindowEvent();
@@ -110,7 +108,7 @@ void llHookRun(std::stop_token token) {
     // 创建一个可以被wait的handle
     HANDLE hStop = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 
-    if (!hStop) {
+    if (!hStop) [[unlikely]] {
         fmt::println(stderr, "create win32 event error: {}", GetLastError());
         return;
     }
@@ -174,9 +172,9 @@ void llHookRun(std::stop_token token) {
         }
 
         if (ret == WAIT_OBJECT_0 + 1) [[likely]] {
-            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) [[unlikely]] {
+            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) [[likely]] {
                 // 其实这个检测应该没什么用，但是D指导这么写了...(目移)
-                if (msg.message == WM_QUIT)
+                if (msg.message == WM_QUIT) [[unlikely]]
                     break;
 
                 TranslateMessage(&msg);

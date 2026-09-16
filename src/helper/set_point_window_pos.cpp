@@ -14,7 +14,7 @@ using std::ranges::views::iota;
 void setPointWindowPos(const GridItem *grid) {
     const auto pos = getMousePos();
     auto pointWindow = WindowFromPoint({ .x = pos.x, .y = pos.y });
-    if (!pointWindow) {
+    if (!pointWindow) [[unlikely]] {
         fmt::println(stderr, "error:no point window");
         return;
     }

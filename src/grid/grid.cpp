@@ -21,7 +21,7 @@ void configDRectWith(DRect *const rect, yyjson_val *configItem) {
     // 一些模板代码
     yyjson_val *key{}, *val{};
     yyjson_obj_iter iter = yyjson_obj_iter_with(configItem);
-    while ((key = yyjson_obj_iter_next(&iter))) {
+    while ((key = yyjson_obj_iter_next(&iter))) [[likely]] {
         val = yyjson_obj_iter_get_val(key);
         // 真正实现逻辑的部分
 
@@ -48,7 +48,7 @@ void configGridWith(GridItem *const item, yyjson_val *const configItem) {
     // 一些模板代码
     yyjson_val *key{}, *val{};
     yyjson_obj_iter iter = yyjson_obj_iter_with(configItem);
-    while ((key = yyjson_obj_iter_next(&iter))) {
+    while ((key = yyjson_obj_iter_next(&iter))) [[likely]] {
         val = yyjson_obj_iter_get_val(key);
         std::string_view keyView{ yyjson_get_str(key), yyjson_get_len(key) };
 
@@ -68,7 +68,7 @@ auto loadConfig(const std::string_view path) -> GridList {
     GridList list{};
     list.reserve(PRE_RESERVE_SIZE);
 
-    if (!std::filesystem::exists(path)) {
+    if (!std::filesystem::exists(path)) [[unlikely]] {
         fmt::println(stderr, "config not exist");
         return list;
     }
@@ -81,7 +81,7 @@ auto loadConfig(const std::string_view path) -> GridList {
                          nullptr,
                          &err));
 
-    if (err.code != YYJSON_PTR_ERR_NONE) {
+    if (err.code != YYJSON_PTR_ERR_NONE) [[unlikely]] {
         std::string_view errView{ err.msg };
         fmt::println(stderr, "can't parse config on {}:{}", err.pos, errView);
         return {};
@@ -92,7 +92,7 @@ auto loadConfig(const std::string_view path) -> GridList {
     yyjson_arr_iter iter = yyjson_arr_iter_with(rootArray);
 
     yyjson_val *configItem{};
-    while ((configItem = yyjson_arr_iter_next(&iter))) {
+    while ((configItem = yyjson_arr_iter_next(&iter))) [[likely]] {
         list.push_back({});
         configGridWith(std::to_address(list.end() - 1), configItem);
     }

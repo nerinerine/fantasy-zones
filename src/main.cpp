@@ -52,7 +52,7 @@ auto main(int argc, char **argv) -> int {
 
     // register custom event
     const auto RegistedEvents = SDL_RegisterEvents(3);
-    if (!RegistedEvents) {
+    if (!RegistedEvents) [[unlikely]] {
         fmt::println(stderr, "sdl register events error:{}", SDL_GetError());
         return -1;
     }
@@ -82,7 +82,7 @@ auto main(int argc, char **argv) -> int {
     auto tray = MakeUniqueWith<SDL_DestroyTray>(
         SDL_CreateTray(nullptr, "fantacyZone"));
 
-    if (!tray) {
+    if (!tray) [[unlikely]] {
         fmt::println(stderr, "sdl create tray error:{}", SDL_GetError());
         return -1;
     }
@@ -106,14 +106,16 @@ auto main(int argc, char **argv) -> int {
     const GuiContext guiCtx{ .rdr = rdr.get(),
                              .win = win.get(),
                              .list = &config };
+
+    EmptyWorkingSet(GetCurrentProcess());
+
     while (true) {
         SDL_WaitEvent(&event);
 
         if (event.type == SDL_EventType::SDL_EVENT_QUIT) [[unlikely]] {
             break;
-        } else if (event.type == getEvents().displayEvent.type) {
+        } else if (event.type == getEvents().displayEvent.type) [[likely]] {
             runGui(guiCtx);
-            EmptyWorkingSet(GetCurrentProcess());
         }
     }
     return 0;

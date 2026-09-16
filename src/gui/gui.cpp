@@ -30,10 +30,11 @@ constexpr struct {
 constexpr auto getEvents = etl::singleton<Events>::instance;
 
 void runGui(const GuiContext ctx) {
-    const GridItem *activeGrid{};
+    static const GridItem *activeGrid{};
+    static SDL_Event event{};
+    static SDL_Point winPos{};
 
-    SDL_Event event{};
-    SDL_Point winPos = showWinInMousePos(ctx.win);
+    winPos = showWinInMousePos(ctx.win);
 
     // main loop
     while (true) {
