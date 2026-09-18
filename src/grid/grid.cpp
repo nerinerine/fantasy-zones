@@ -130,9 +130,10 @@ auto loadConfig(const std::string_view path) -> GridList {
 
 [[nodiscard]] auto DRect::realRect() const -> SDL_Rect {
     const auto size = getScreenSize();
+    const auto screenPos = getScreenStartPoint();
     return {
-        .x = static_cast<int>(size.w * x),
-        .y = static_cast<int>(size.h * y),
+        .x = static_cast<int>(screenPos.x + size.w * x),
+        .y = static_cast<int>(screenPos.y + size.h * y),
         .w = static_cast<int>(size.w * w),
         .h = static_cast<int>(size.h * h),
     };

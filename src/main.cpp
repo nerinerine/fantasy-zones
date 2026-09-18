@@ -36,11 +36,10 @@ auto main(int argc, char **argv) -> int {
     // create window
     SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
 
-    const auto windowSize = getWindowSize(getScreenSize());
     const auto win = MakeUniqueWith<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
-                         windowSize.w,
-                         windowSize.h,
+                         0,
+                         0,
                          SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
 
     if (!win) [[unlikely]] {

@@ -33,8 +33,8 @@ void setPointWindowPos(const GridItem *grid) {
         return;
     }
 
-    RECT windowRect{}; //窗口的大小
-    RECT shadowRect{}; //算上阴影之后窗口的真实大小
+    static RECT windowRect{}; //窗口的大小
+    static RECT shadowRect{}; //算上阴影之后窗口的真实大小
     GetWindowRect(pointWindow, &windowRect);
     DwmGetWindowAttribute(pointWindow,
                           DWMWA_EXTENDED_FRAME_BOUNDS,

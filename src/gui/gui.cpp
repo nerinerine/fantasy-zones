@@ -33,6 +33,12 @@ void runGui(const GuiContext ctx) {
     static const GridItem *activeGrid{};
     static SDL_Event event{};
     static SDL_Point winPos{};
+    static Rect windowSize{};
+
+    if (windowSize != getWindowSize(getScreenSize())) [[unlikely]] {
+        windowSize = getWindowSize(getScreenSize());
+        SDL_SetWindowSize(ctx.win, windowSize.w, windowSize.h);
+    }
 
     winPos = showWinInMousePos(ctx.win);
 

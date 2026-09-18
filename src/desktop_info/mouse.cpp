@@ -2,7 +2,7 @@
 #include <windows.h>
 
 [[nodiscard]] auto getMousePos() -> Pos {
-    POINT pt;
+    static POINT pt;
     GetCursorPos(&pt);
     return { .x = pt.x, .y = pt.y };
 }
