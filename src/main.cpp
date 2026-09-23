@@ -9,7 +9,6 @@
 #include "grid/grid.hpp"
 #include "gui/gui.hpp"
 #include "llhook/hook.hpp"
-#include "desktop_info/info.hpp"
 
 #include "helper/events.hpp"
 #include "helper/make_unique_with.hpp"
@@ -40,7 +39,8 @@ auto main(int argc, char **argv) -> int {
         SDL_CreateWindow("Fantacy Zone",
                          0,
                          0,
-                         SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN));
+                         SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN |
+                             SDL_WINDOW_ALWAYS_ON_TOP));
 
     if (!win) [[unlikely]] {
         fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
