@@ -20,13 +20,13 @@ target("fantasy_zones")
         -- 启用链接时优化
         -- add_cxflags("-flto")
         -- add_ldflags("-flto")
-        -- 加入一点优化
+        -- 加入一点优化参数
         add_cxflags("-mtune=generic")
         add_cxflags("-ffast-math")
         add_cxflags("-fomit-frame-pointer","-fmerge-all-constants")
         add_cxflags("-ffunction-sections","-fdata-sections")
         add_ldflags("-Wl,--gc-sections", "-s")
-        -- 去除一些幽默的特性
+        -- 去除c++一些幽默的特性
         add_cxxflags("-fno-rtti")
         add_cxflags("-fno-exceptions")
         -- 倾向于体积优化

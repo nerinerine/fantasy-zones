@@ -34,6 +34,7 @@ auto main(int argc, char **argv) -> int {
 
     // create window
     SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
+    SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_RAISED, "0");
 
     const auto win = MakeUniqueWith<SDL_DestroyWindow>(
         SDL_CreateWindow("Fantacy Zone",
@@ -46,8 +47,6 @@ auto main(int argc, char **argv) -> int {
         fmt::println(stderr, "sdl create window error:{}", SDL_GetError());
         return -1;
     }
-
-    SDL_SetWindowAlwaysOnTop(win.get(), true);
 
     // register custom event
     const auto RegistedEvents = SDL_RegisterEvents(3);

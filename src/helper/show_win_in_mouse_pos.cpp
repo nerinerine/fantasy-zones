@@ -16,5 +16,7 @@ auto showWinInMousePos(SDL_Window *win) -> SDL_Point {
     const int winY = mousePos.y - static_cast<int>(winHeight * relPos.y);
     SDL_SetWindowPosition(win, winX, winY);
     SDL_ShowWindow(win);
+    SDL_RaiseWindow(win);
+    SDL_RestoreWindow(win);
     return { .x = winX, .y = winY };
 }
